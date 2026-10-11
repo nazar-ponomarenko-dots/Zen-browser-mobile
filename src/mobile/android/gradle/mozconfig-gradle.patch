@@ -1,0 +1,14 @@
+diff --git a/mobile/android/gradle/mozconfig.gradle b/mobile/android/gradle/mozconfig.gradle
+index 611fa29e6f7df3d0851894272c0b7379ddf64396..71e17cd08f7dbd41c9694c604222c8921d86340a 100644
+--- a/mobile/android/gradle/mozconfig.gradle
++++ b/mobile/android/gradle/mozconfig.gradle
+@@ -262,7 +262,8 @@ try {
+ def elapsed = System.currentTimeMillis() - startTime
+ logger.info("mozconfig.gradle> Loaded mach environment for ${topobjdir} in ${elapsed} ms")
+ 
+-if (json.substs.MOZ_BUILD_APP != 'mobile/android') {
++if (json.substs.MOZ_BUILD_APP != 'mobile/android' &&
++        !(json.substs.MOZ_BUILD_APP == 'browser' && json.substs.MOZ_WIDGET_TOOLKIT == 'android')) {
+     throw new GradleException("Building with Gradle is only supported for Firefox for Android, i.e., MOZ_BUILD_APP == 'mobile/android'.")
+ }
+ 

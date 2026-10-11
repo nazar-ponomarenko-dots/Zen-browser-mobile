@@ -1,0 +1,17 @@
+diff --git a/config/recurse.mk b/config/recurse.mk
+index 66fbd49401371e60b721e5a11c4e999ad8e5af02..9fb5c05da03d1bba3a6644d7cdfadcdc9de9c781 100644
+--- a/config/recurse.mk
++++ b/config/recurse.mk
+@@ -166,8 +166,10 @@ recurse:
+ ifeq (.,$(DEPTH))
+ 
+ # This is required so that the pre-export tier sees the rules in
+-# mobile/android
+-ifeq ($(MOZ_WIDGET_TOOLKIT),android)
++# mobile/android.  Those rules only exist for the Fennec project: a standalone
++# XUL browser built for Android (MOZ_WIDGET_TOOLKIT=android, but
++# MOZ_BUILD_APP=browser) doesn't include mobile/android at all.
++ifeq ($(MOZ_BUILD_APP),mobile/android)
+ recurse_pre-export: mobile/android/pre-export
+ endif
+ 

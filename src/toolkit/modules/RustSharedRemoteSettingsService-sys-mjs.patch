@@ -1,0 +1,15 @@
+diff --git a/toolkit/modules/RustSharedRemoteSettingsService.sys.mjs b/toolkit/modules/RustSharedRemoteSettingsService.sys.mjs
+index cfcd3b0803caf2364948e9e9f847a80127c95b9b..bf92eaaacfb06697d7b66e79d6afb5b13b9ee318 100644
+--- a/toolkit/modules/RustSharedRemoteSettingsService.sys.mjs
++++ b/toolkit/modules/RustSharedRemoteSettingsService.sys.mjs
+@@ -45,7 +45,9 @@ class _SharedRemoteSettingsService {
+         appVersion: Services.appinfo.version,
+         locale: Services.locale.appLocaleAsBCP47,
+         os: AppConstants.platform,
+-        osVersion: Services.sysinfo.get("version"),
++        // On Android, sysinfo's "version" is the numeric API level; the Rust
++        // RemoteSettingsContext record requires a string.
++        osVersion: String(Services.sysinfo.get("version") ?? ""),
+         country: Region.home ?? undefined,
+       }),
+     });

@@ -1,0 +1,24 @@
+diff --git a/toolkit/components/moz.build b/toolkit/components/moz.build
+index d20f936e309be702b5291a1e989024c2338ea87a..c30707b72bfc90f2dcddd021961f64f73fae05f7 100644
+--- a/toolkit/components/moz.build
++++ b/toolkit/components/moz.build
+@@ -102,11 +102,19 @@ if CONFIG["NS_PRINTING"]:
+     DIRS += ["printing"]
+ 
+ if CONFIG["MOZ_BUILD_APP"] != "mobile/android":
++    # Zen Android: the uniffi stack is enabled for cairo-android too —
++    # gkrust-uniffi-components is a dependency of gkrust for our target
++    # (toolkit/library/rust/shared/Cargo.toml), which supplies the uniffi_*
++    # symbols that uniffi-js/GeneratedScaffolding.cpp links against. Without
++    # it SearchService (RustSearch) cannot initialize: search is Rust-only
++    # since FF142.
+     DIRS += [
+         "aboutconfig",
+         "aboutpdf",
+         "narrate",
+         "pictureinpicture",
++    ]
++    DIRS += [
+         "uniffi-js",
+         "uniffi-bindgen-gecko-js/components",
+     ]

@@ -1,5 +1,5 @@
 diff --git a/browser/components/BrowserGlue.sys.mjs b/browser/components/BrowserGlue.sys.mjs
-index d07aaa3fbb8ccb02ae00d845649dc9c1d623cba5..68d3a4800f14fef5b5e7df9cd9afe3bc85358bed 100644
+index 4ba67b8927ec1e0d9b49f1bc29401ab8fb08d070..24480258b31ff3f45b0e7c4b0b594371cc4e5744 100644
 --- a/browser/components/BrowserGlue.sys.mjs
 +++ b/browser/components/BrowserGlue.sys.mjs
 @@ -8,6 +8,7 @@ import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
@@ -10,7 +10,76 @@ index d07aaa3fbb8ccb02ae00d845649dc9c1d623cba5..68d3a4800f14fef5b5e7df9cd9afe3bc
    AboutHomeStartupCache: "resource:///modules/AboutHomeStartupCache.sys.mjs",
    AWToolbarButton: "resource:///modules/aboutwelcome/AWToolbarUtils.sys.mjs",
    ASRouter: "resource:///modules/asrouter/ASRouter.sys.mjs",
-@@ -1458,7 +1459,7 @@ BrowserGlue.prototype = {
+@@ -201,6 +202,68 @@ BrowserGlue.prototype = {
+         this._openPreferences("privacy-permissions");
+         break;
+       case "final-ui-startup":
++        if (AppConstants.platform === "android") {
++          // widget/android/nsAppShell.cpp only advances the parent process's
++          // GeckoThread from PROFILE_READY to RUNNING on this topic, which
++          // in a GeckoView build is emitted by mobile/shared/components/
++          // geckoview/GeckoViewStartup.sys.mjs. That component is not part of
++          // a browser build, and without RUNNING GeckoThread's NativeQueue
++          // never flushes and EventDispatcher never attaches, so no surface or
++          // input can reach a window. Before _beforeUIStartup(), so that a
++          // throw there cannot hide it.
++          // The RUNNING transition flushes Java's queued native calls
++          // (EventDispatcher.dispatchToGecko). Those JNI methods are bound by
++          // RegisterNatives in the C++ widget::EventDispatcher constructor,
++          // which lives in nsAndroidBridge; a GeckoView build instantiates the
++          // bridge from the mobile/shared JS glue (absent here, patch-triage
++          // #23), so create the service explicitly before the transition.
++          try {
++            Cc["@mozilla.org/android/bridge;1"].getService(
++              Ci.nsIGeckoViewBridge
++            );
++          } catch (e) {
++            console.error("zen-android: android bridge init failed", e);
++          }
++          // The GeckoView file-picker component lives in mobile/shared, which
++          // is not part of a browser/ build either; without it every
++          // <input type=file> is cancelled in FilePickerParent. Register our
++          // EventDispatcher-backed replacement (same "GeckoView:Prompt" wire
++          // format, so the Java PromptController works unchanged).
++          try {
++            ChromeUtils.importESModule(
++              "resource:///modules/ZenAndroidFilePicker.sys.mjs"
++            ).register();
++          } catch (e) {
++            console.error("zen-android: file picker register failed", e);
++          }
++          // The build is a desktop browser compiled for Android, so the UA it
++          // composes carries the Android platform and the Mobile token and every
++          // site serves its phone layout. The per-session desktop mode is applied
++          // by GeckoViewSettings.sys.mjs, which a chrome-URI port never loads, so
++          // rewrite the global UA here instead, with the same substitution the
++          // mobile implementation uses (patch-triage #43).
++          try {
++            const httpHandler = Cc[
++              "@mozilla.org/network/protocol;1?name=http"
++            ].getService(Ci.nsIHttpProtocolHandler);
++            const ua = httpHandler.userAgent;
++            if (
++              !Services.prefs.prefHasUserValue("general.useragent.override") &&
++              ua.includes("Android")
++            ) {
++              Services.prefs.setCharPref(
++                "general.useragent.override",
++                ua
++                  .replace(/Android \d.+?; [a-zA-Z]+/, "X11; Linux x86_64")
++                  .replace(/Gecko\/[0-9.]+/, "Gecko/20100101")
++              );
++            }
++          } catch (e) {
++            console.error("zen-android: desktop user agent failed", e);
++          }
++          console.error("zen-android: emitting geckoview-startup-complete");
++          Services.obs.notifyObservers(null, "geckoview-startup-complete");
++        }
+         this._beforeUIStartup();
+         break;
+       case "browser-delayed-startup-finished":
+@@ -1480,7 +1543,7 @@ BrowserGlue.prototype = {
        windowcount++;
        let tabbrowser = win.gBrowser;
        if (tabbrowser) {
@@ -19,7 +88,7 @@ index d07aaa3fbb8ccb02ae00d845649dc9c1d623cba5..68d3a4800f14fef5b5e7df9cd9afe3bc
        }
      }
  
-@@ -1623,6 +1624,8 @@ BrowserGlue.prototype = {
+@@ -1645,6 +1708,8 @@ BrowserGlue.prototype = {
      } else if (profileDataVersion < APP_DATA_VERSION) {
        lazy.ProfileDataUpgrader.upgrade(profileDataVersion, APP_DATA_VERSION);
      }

@@ -8,6 +8,13 @@
 
 ### `Zen Browser`
 
+> **This is not an official Zen port.** The `android` branch is an unofficial
+> adaptation of Zen Desktop to Android: it was built outside the Zen OSS Team,
+> is not signed with the project key, and has not been reviewed or supported by
+> the Zen team. Build and install such builds at your own risk. Android
+> issues belong in this repository's issue tracker — please do not file them
+> upstream at [zen-browser/desktop](https://github.com/zen-browser/desktop).
+
 [![Downloads](https://img.shields.io/github/downloads/zen-browser/desktop/total.svg)](https://github.com/zen-browser/desktop/releases)
 [![Crowdin](https://badges.crowdin.net/zen-browser/localized.svg)](https://crowdin.com/project/zen-browser)
 [![Zen Release builds](https://github.com/zen-browser/desktop/actions/workflows/build.yml/badge.svg?branch=stable)](https://github.com/zen-browser/desktop/actions/workflows/build.yml)
@@ -42,6 +49,23 @@ Zen is a firefox-based browser with the aim of pushing your productivity to a ne
 If you'd like to report a bug, please do so on our [GitHub Issues page](https://github.com/zen-browser/desktop/issues/) and for feature requests, you can use [GitHub Discussions](https://github.com/zen-browser/desktop/discussions).
 
 Zen is an open-source project, and we welcome contributions from the community! Please take a look at the [contribution guidelines](./docs/contribute.md) before getting started!
+
+### Android
+
+This branch carries the Android port: desktop Gecko (Firefox `157.0.1`,
+`cairo-android`) built for Bionic and shipped as the GeckoView app
+`app.zen.mobile` with the regular Zen chrome.
+
+```bash
+npm ci && npm run init                        # surfer download + import + bootstrap
+bash android/scripts/build-android.sh arm64   # x86_64 for the emulator
+# -> android/out/zen-arm64-v8a-debug.apk
+```
+
+Requirements, the ordering constraints the build depends on and the current
+limitations: [android/README.md](./android/README.md). Debug builds of both
+abis are attached to the
+[`android-debug` release](https://github.com/nazar-ponomarenko-dots/Zen-browser-mobile/releases/tag/android-debug).
 
 #### Partners
 

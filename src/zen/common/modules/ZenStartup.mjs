@@ -174,7 +174,6 @@ class ZenStartup {
       return;
     }
     if (!Services.prefs.getBoolPref(kWelcomeScreenSeenPref, false)) {
-      Services.prefs.setBoolPref(kWelcomeScreenSeenPref, true);
       Services.prefs.setStringPref(
         "zen.updates.last-build-id",
         Services.appinfo.appBuildID
@@ -183,10 +182,19 @@ class ZenStartup {
         "zen.updates.last-version",
         Services.appinfo.version
       );
-      Services.scriptloader.loadSubScript(
-        "chrome://browser/content/zen-components/ZenWelcome.mjs",
-        window
-      );
+      // `seen` is written by the welcome's own finish(), not here: a flow that
+      // throws halfway through used to be burned forever . Only
+      // a module that cannot load at all marks it seen, so a broken build does
+      // not loop on every startup.
+      try {
+        Services.scriptloader.loadSubScript(
+          "chrome://browser/content/zen-components/ZenWelcome.mjs",
+          window
+        );
+      } catch (e) {
+        console.error("ZenStartup: failed to load the welcome screen", e);
+        Services.prefs.setBoolPref(kWelcomeScreenSeenPref, true);
+      }
     } else {
       this.#createUpdateAnimation();
     }

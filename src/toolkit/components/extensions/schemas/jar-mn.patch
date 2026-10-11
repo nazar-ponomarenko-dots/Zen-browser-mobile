@@ -1,0 +1,33 @@
+diff --git a/toolkit/components/extensions/schemas/jar.mn b/toolkit/components/extensions/schemas/jar.mn
+index 3a38aed6117fda20a2acba25308f48a86370a11d..b237ef425981ff61e1ad23751499d866121fef09 100644
+--- a/toolkit/components/extensions/schemas/jar.mn
++++ b/toolkit/components/extensions/schemas/jar.mn
+@@ -9,14 +9,10 @@ toolkit.jar:
+     content/extensions/schemas/browser_action.json
+     content/extensions/schemas/browser_settings.json
+     content/extensions/schemas/browsing_data.json
+-#ifndef ANDROID
+     content/extensions/schemas/captive_portal.json
+-#endif
+     content/extensions/schemas/clipboard.json
+     content/extensions/schemas/content_scripts.json
+-#ifndef ANDROID
+     content/extensions/schemas/contextual_identities.json
+-#endif
+     content/extensions/schemas/cookies.json
+     content/extensions/schemas/declarative_net_request.json
+     content/extensions/schemas/dns.json
+@@ -26,13 +22,9 @@ toolkit.jar:
+     content/extensions/schemas/extension.json
+     content/extensions/schemas/extension_types.json
+     content/extensions/schemas/extension_protocol_handlers.json
+-#ifndef ANDROID
+     content/extensions/schemas/geckoProfiler.json
+-#endif
+     content/extensions/schemas/i18n.json
+-#ifndef ANDROID
+     content/extensions/schemas/identity.json
+-#endif
+     content/extensions/schemas/idle.json
+     content/extensions/schemas/management.json
+     content/extensions/schemas/manifest.json

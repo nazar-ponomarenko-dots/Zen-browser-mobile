@@ -1,0 +1,13 @@
+diff --git a/toolkit/mozapps/extensions/jar.mn b/toolkit/mozapps/extensions/jar.mn
+index d2bec0bed417b2b8795ba8322441da9699a0cd24..c26a06c9ec9890cb24b1d94963283b3ffe41313d 100644
+--- a/toolkit/mozapps/extensions/jar.mn
++++ b/toolkit/mozapps/extensions/jar.mn
+@@ -4,7 +4,7 @@
+ 
+ toolkit.jar:
+ % content mozapps %content/mozapps/
+-#ifndef MOZ_GECKOVIEW
++#if !defined(MOZ_GECKOVIEW) || defined(ANDROID)
+   content/mozapps/extensions/OpenH264-license.txt               (content/OpenH264-license.txt)
+   content/mozapps/extensions/aboutaddons.html                   (content/aboutaddons.html)
+   content/mozapps/extensions/aboutaddons.mjs                    (content/aboutaddons.mjs)

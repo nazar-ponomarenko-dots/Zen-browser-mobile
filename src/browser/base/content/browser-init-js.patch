@@ -1,8 +1,27 @@
 diff --git a/browser/base/content/browser-init.js b/browser/base/content/browser-init.js
-index 2f3f46d8d82dc90ebca8d64ace9d6bf1ee127937..163eb027b8cca1d43af24fff762e951e6f1030fc 100644
+index 28ac9595a84075885db03428b4c73cda8f10f26c..f8a5a89175ce0242e8a4454a8c73b9e3bad14aec 100644
 --- a/browser/base/content/browser-init.js
 +++ b/browser/base/content/browser-init.js
-@@ -279,6 +279,7 @@ var gBrowserInit = {
+@@ -119,7 +119,17 @@ var gBrowserInit = {
+     updateBookmarkToolbarVisibility();
+ 
+     // Set a sane starting width/height for all resolutions on new profiles.
+-    if (ChromeUtils.shouldResistFingerprinting("RoundWindowSize", null)) {
++    if (AppConstants.platform === "android") {
++      // zen-android: the chrome window is sized by the GeckoView surface
++      // (LayerViewSupport::OnBoundsChanged), so never apply persisted
++      // desktop sizes.
++      const root = document.documentElement;
++      root.removeAttribute("width");
++      root.removeAttribute("height");
++      root.removeAttribute("screenX");
++      root.removeAttribute("screenY");
++      root.setAttribute("sizemode", "maximized");
++    } else if (ChromeUtils.shouldResistFingerprinting("RoundWindowSize", null)) {
+       // When the fingerprinting resistance is enabled, making sure that we don't
+       // have a maximum window to interfere with generating rounded window dimensions.
+       document.documentElement.setAttribute("sizemode", "normal");
+@@ -282,6 +292,7 @@ var gBrowserInit = {
    },
  
    onLoad() {
@@ -10,3 +29,18 @@ index 2f3f46d8d82dc90ebca8d64ace9d6bf1ee127937..163eb027b8cca1d43af24fff762e951e
      gBrowser.addEventListener("DOMUpdateBlockedPopups", e =>
        PopupAndRedirectBlockerObserver.handleEvent(e)
      );
+@@ -1068,6 +1079,14 @@ var gBrowserInit = {
+       //                      window (for this case, all other arguments are
+       //                      ignored).
+       let uri = window.arguments?.[0];
++      if (uri instanceof Ci.nsIGeckoViewView) {
++        // zen-android: the standalone browser window is opened by
++        // GeckoViewSupport::Open, whose first argument is the GeckoView
++        // surface wrapper, not a URI. Fall back to the same default
++        // startup URI (homepage / about:newtab) a regular first window
++        // would get from the command-line handler.
++        uri = BrowserHandler.defaultArgs;
++      }
+       if (!uri || window.XULElement.isInstance(uri)) {
+         return null;
+       }

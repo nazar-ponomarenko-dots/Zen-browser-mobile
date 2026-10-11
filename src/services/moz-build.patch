@@ -1,0 +1,27 @@
+diff --git a/services/moz.build b/services/moz.build
+index d65345e439e98e2f45df5cf5ff5e9e43b925ad72..d5c35ac6431b547e79d118dee2d4958efd77d614 100644
+--- a/services/moz.build
++++ b/services/moz.build
+@@ -19,11 +19,22 @@ DIRS += [
+ if not CONFIG["RELEASE_OR_BETA"] or CONFIG["MOZ_DEBUG"]:
+     DIRS += ["automation"]
+ 
++# zen-android: the standalone (desktop-chrome) browser on Android must keep
++# the services tree; upstream excludes it for cairo-android builds because
++# GeckoView ships its own. viaduct-necko stays out (Rust gateguard pairing is
++# only wired for GeckoView's app-services setup).
++_is_standalone_android_browser = (
++    CONFIG["MOZ_BUILD_APP"] == "browser"
++    and CONFIG["MOZ_WIDGET_TOOLKIT"] == "android"
++)
++
+ if CONFIG["MOZ_WIDGET_TOOLKIT"] != "android":
+     DIRS += [
+         "fxaccounts",
+         "application-services/components/viaduct-necko",
+     ]
++elif _is_standalone_android_browser:
++    DIRS += ["fxaccounts"]
+ 
+ if CONFIG["MOZ_WIDGET_TOOLKIT"] == "android" or CONFIG["MOZ_APPSERVICES_IN_TREE"]:
+     DIRS += [

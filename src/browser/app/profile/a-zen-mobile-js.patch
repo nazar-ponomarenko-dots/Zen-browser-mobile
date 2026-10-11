@@ -1,0 +1,65 @@
+diff --git a/browser/app/profile/a-zen-mobile.js b/browser/app/profile/a-zen-mobile.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..33aa130fc20054cbcf1ea9006d91cdde7b718445
+--- /dev/null
++++ b/browser/app/profile/a-zen-mobile.js
+@@ -0,0 +1,59 @@
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++// zen-android: mobile defaults, packaged into omni.ja's
++// defaults/preferences/ (see ROADMAP M4 "mobile prefs"). Only prefs whose
++// desktop defaults are wrong for a touch-first, battery-conscious,
++// narrow-viewport device belong here.
++//
++// The name is load-order-critical, hence the "a-" prefix: on Android the
++// defaults/preferences/ files of the merged omni.ja are applied in
++// reverse-alphabetical order (modules/libpref/Preferences.cpp sorts the jar
++// entries and iterates from the end), so the last file applied — and the one
++// whose `pref()` calls win — is the one that sorts FIRST. firefox.js also
++// embeds browser/app/profile/zen.js via `#include` at preprocessing time,
++// including zen.workspaces.continue-where-left-off = false; "zen-mobile.js"
++// would sort after it and lose. "a-zen-mobile.js" sorts before every other
++// file in the directory (debugger.js, firefox-branding.js, firefox.js).
++
++// The desktop toolbox is ~40% of a portrait phone screen; start in Zen
++// compact mode so content gets the full width and the sidebar floats.
++pref("zen.view.compact.enable-at-startup", true);
++
++// Hardware WR (EGL) is available on Android; don't fall back to software.
++pref("gfx.webrender.software", false);
++
++// Android kills background apps without warning; "closing the app" is never a
++// clean shutdown, so the mobile product behaviour is to always resume the
++// previous session on the next start. (zen.js already defaults this to 3 and
++// wins inside firefox.js; restated here because this is load-bearing for the
++// mobile product, not a taste choice.)
++pref("browser.startup.page", 3);
++
++// With page=3 the workspace startup logic would otherwise park the user on
++// the empty "New Tab" tab; this selects the tab that was active when the app
++// was last open (ZenSpaceManager's "Found tab to select" branch).
++pref("zen.workspaces.continue-where-left-off", true);
++
++// zen.js defaults this to true for unbranded (non-MOZILLA_OFFICIAL) builds,
++// which hides the first-run setup screen; our android builds are unofficial,
++// so restore the official behaviour.
++pref("zen.welcome-screen.seen", false);
++
++// Zen's startup watermark keeps #browser hidden until delayed startup finishes
++// and shows the Zen gradient instead. It is normally compiled in only for
++// official builds (prefs/zen/watermark.yaml), but on Android it is also the
++// thing covering the multi-second desktop-chrome init, so turn it on here
++// rather than widening the official-build condition.
++pref("zen.watermark.enabled", true);
++
++// The Activity Stream extension is not packaged for Android at all (see
++// browser/extensions/moz.build), so these two prefs only have to keep the
++// parent-side newtab machinery from asking for a page that cannot exist:
++// `preload` would hold hidden <browser> elements for it, and `enabled` is what
++// makes AboutNewTab hand out `about:newtab` as the new-tab URL. With both off,
++// every code path that still asks for a new tab document gets `about:blank`,
++// which is what Zen's own empty tab uses anyway.
++pref("browser.newtab.preload", false);
++pref("browser.newtabpage.enabled", false);

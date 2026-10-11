@@ -1,0 +1,19 @@
+diff --git a/browser/moz.build b/browser/moz.build
+index 5a03cfc6d3..6d05c3371a 100644
+--- a/browser/moz.build
++++ b/browser/moz.build
+@@ -54,6 +54,14 @@ if CONFIG["MOZ_ARTIFACT_BUILDS"]:
+ JS_PREFERENCE_PP_FILES += [
+     "app/profile/firefox.js",
+ ]
++# zen-android: mobile defaults (see ROADMAP M4). The defaults/preferences/
++# files in the merged omni.ja are applied in reverse-alphabetical order
++# (modules/libpref/Preferences.cpp), so the "a-" prefix makes these win over
++# the zen.js values embedded in firefox.js.
++if CONFIG["MOZ_WIDGET_TOOLKIT"] == "android":
++    JS_PREFERENCE_FILES += [
++        "app/profile/a-zen-mobile.js",
++    ]
+ FINAL_TARGET_FILES.defaults += ["app/permissions"]
+ 
+ with Files("**"):

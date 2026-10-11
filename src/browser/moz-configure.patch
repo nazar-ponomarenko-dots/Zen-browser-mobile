@@ -1,0 +1,25 @@
+diff --git a/browser/moz.configure b/browser/moz.configure
+index 446e8637d053b1d6972d0a1b712d75322b011a17..16ac3dbcd289a6feefbe4f18da9c366871a8c337 100644
+--- a/browser/moz.configure
++++ b/browser/moz.configure
+@@ -199,3 +199,20 @@ set_config(
+     "MOZ_CHROME_LOCALE_ENTRIES",
+     ["@RESPATH@/browser/chrome/", "@RESPATH@/chrome/"],
+ )
++
++# Zen Android: a standalone XUL browser on Android still needs the JNI
++# bindings that the GeckoView Gradle pipeline generates.  Pull in the SDK,
++# Java and Gradle configuration that mobile/android/moz.configure would
++# otherwise own.
++include("../build/moz.configure/android-sdk.configure", when=compiling_android)
++include("../build/moz.configure/java.configure", when=compiling_android)
++include("../mobile/android/gradle.configure", when=compiling_android)
++
++# mobile/android/confvars.sh normally owns these; the GeckoView Gradle build
++# files (used here only for JNI bindings generation) read them.
++set_config("MOZ_ANDROID_CONTENT_SERVICE_COUNT", "40", when=compiling_android)
++
++# mobile/android/confvars.sh defines MOZ_GECKOVIEW; the IPDL/C++ pairing
++# PGeckoViewContentChannel <-> PNecko (netwerk) needs it too, now that
++# mobile/android/components/geckoview is part of this build.
++set_define("MOZ_GECKOVIEW", True, when=compiling_android)

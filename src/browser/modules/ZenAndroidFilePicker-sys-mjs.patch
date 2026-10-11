@@ -1,0 +1,354 @@
+diff --git a/browser/modules/ZenAndroidFilePicker.sys.mjs b/browser/modules/ZenAndroidFilePicker.sys.mjs
+new file mode 100644
+index 0000000000..630d5833e8
+--- /dev/null
++++ b/browser/modules/ZenAndroidFilePicker.sys.mjs
+@@ -0,0 +1,348 @@
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++
++/**
++ * zen-android: parent-process nsIFilePicker for the Android (Bionic) build.
++ *
++ * The engine normally gets this component from
++ * mobile/shared/components/geckoview/FilePickerDelegate.sys.mjs, but that
++ * directory is not part of a browser/ project build (patch-triage #23/#36).
++ * Without it, FilePickerParent::CreateFilePicker() fails to instantiate
++ * "@mozilla.org/parent/filepicker;1" and every <input type=file> is silently
++ * cancelled.
++ *
++ * This port keeps the GeckoView wire format ("GeckoView:Prompt" event with a
++ * {type:"file", mode, mimeTypes, capture, id} payload and a
++ * {files:[...], filesInWebKitDirectory:[...]} result) so the already-compiled
++ * Java PromptController/FilePrompt in the geckoview module works unchanged;
++ * only the transport differs: instead of the per-window GeckoViewPrompter
++ * JSWindowActor (absent here) we dispatch on the chrome window's
++ * nsIGeckoViewEventDispatcher. GeckoViewSupport::Open passes an AndroidView
++ * as window.arguments[0] and attaches it to the GeckoSession's own Java
++ * EventDispatcher (nsWindow.cpp), which is where GeckoSession.Listener
++ * registers "GeckoView:Prompt" (GeckoSession.java) — the app-wide bridge
++ * dispatcher (@mozilla.org/android/bridge;1) is a different bus and would
++ * never reach the session.
++ */
++
++const CONTRACT = "@mozilla.org/parent/filepicker;1";
++const CLASS_ID = Components.ID("{3f5a2d71-9c04-4b6e-8d2f-5a1e7c94b0d3}");
++
++const lazy = {};
++
++ChromeUtils.defineESModuleGetters(lazy, {
++  FileUtils: "resource://gre/modules/FileUtils.sys.mjs",
++});
++
++let promptCounter = 0;
++
++function dispatcher() {
++  // The chrome window opened by GeckoViewSupport::Open carries the AndroidView
++  // (an nsIGeckoViewEventDispatcher) as its first argument; it is attached to
++  // the GeckoSession that owns the LayerView, so this is the bus the Java
++  // "GeckoView:Prompt" listener is registered on.
++  const win = Services.wm.getMostRecentWindow("navigator:browser");
++  const view = win?.arguments?.[0];
++  if (view instanceof Ci.nsIGeckoViewEventDispatcher) {
++    return view;
++  }
++  // Fallback to the app-wide bridge dispatcher; correct for non-GeckoView
++  // consumers and keeps us from throwing if the view is not yet attached.
++  return Cc["@mozilla.org/android/bridge;1"].getService(
++    Ci.nsIGeckoViewEventDispatcher
++  );
++}
++
++export class ZenAndroidFilePicker {
++  _filesInWebKitDirectory = [];
++
++  /* ----------  nsIFilePicker  ---------- */
++  init(aBrowsingContext, aTitle, aMode) {
++    let mode;
++    switch (aMode) {
++      case Ci.nsIFilePicker.modeOpen:
++        mode = "single";
++        break;
++      case Ci.nsIFilePicker.modeGetFolder:
++        mode = "folder";
++        break;
++      case Ci.nsIFilePicker.modeOpenMultiple:
++        mode = "multiple";
++        break;
++      default:
++        throw Components.Exception("", Cr.NS_ERROR_NOT_IMPLEMENTED);
++    }
++    this._browsingContext = aBrowsingContext;
++    this._msg = {
++      type: "file",
++      title: aTitle,
++      mode,
++    };
++    this._mode = aMode;
++    this._mimeTypes = [];
++    this._capture = 0;
++  }
++
++  get mode() {
++    return this._mode;
++  }
++
++  appendFilter(aType, aFilter) {}
++
++  appendRawFilter(aFilter) {
++    this._mimeTypes.push(aFilter);
++  }
++
++  open(aFilePickerShownCallback) {
++    if (!this._browsingContext?.canOpenModalPicker) {
++      aFilePickerShownCallback.done(Ci.nsIFilePicker.returnCancel);
++      return;
++    }
++
++    this._msg.id = "zen-android-" + ++promptCounter;
++    this._msg.mimeTypes = this._mimeTypes;
++    this._msg.capture = this._capture;
++
++    const callback = {
++      onSuccess: result => {
++        // Java sends null for a dismissed prompt, the result bundle for a
++        // confirmed one (BasePrompt.dispatch).
++        if (!result || !result.files || !result.files.length) {
++          aFilePickerShownCallback.done(Ci.nsIFilePicker.returnCancel);
++        } else {
++          this._resolveFilesInWebKitDirectory(result.filesInWebKitDirectory)
++            .then(() => {
++              this._resolveFiles(result.files, aFilePickerShownCallback);
++            })
++            .catch(e => {
++              console.error("zen-android file picker resolve failed", e);
++              aFilePickerShownCallback.done(Ci.nsIFilePicker.returnCancel);
++            });
++        }
++      },
++      onError: data => {
++        console.error("zen-android file prompt failed", data);
++        aFilePickerShownCallback.done(Ci.nsIFilePicker.returnCancel);
++      },
++      QueryInterface: ChromeUtils.generateQI(["nsIGeckoViewEventCallback"]),
++    };
++
++    try {
++      dispatcher().dispatch("GeckoView:Prompt", { prompt: this._msg }, callback);
++    } catch (e) {
++      console.error("zen-android file picker dispatch failed", e);
++      aFilePickerShownCallback.done(Ci.nsIFilePicker.returnCancel);
++    }
++  }
++
++  async _resolveFiles(aFiles, aCallback) {
++    const fileData = [];
++
++    try {
++      for (const file of aFiles) {
++        const domFileOrDir = await this._getDOMFileOrDir(file);
++        fileData.push({
++          file,
++          domFileOrDir,
++        });
++      }
++    } catch (ex) {
++      console.error("zen-android file picker: resolving failed", ex);
++      aCallback.done(Ci.nsIFilePicker.returnCancel);
++      return;
++    }
++
++    this._fileData = fileData;
++    aCallback.done(Ci.nsIFilePicker.returnOK);
++  }
++
++  async _resolveFilesInWebKitDirectory(files) {
++    if (!files) {
++      return;
++    }
++
++    const filesInWebKitDirectory = [];
++
++    for (const info of files) {
++      const { filePath, relativePath, type, lastModified } = info;
++      if (filePath) {
++        const file = File.createFromFileName(filePath, {
++          type,
++          lastModified,
++        });
++
++        file.setMozRelativePath(relativePath);
++        filesInWebKitDirectory.push(file);
++        continue;
++      }
++
++      // File path cannot be resolved, but we know content URI.
++      const file = this._getDOMFileFromContentUri(info);
++      file.setMozRelativePath(relativePath);
++      filesInWebKitDirectory.push(file);
++    }
++
++    this._filesInWebKitDirectory = filesInWebKitDirectory;
++  }
++
++  _getDOMFileFromContentUri(aInfo) {
++    const { uri, name, type, lastModified, size } = aInfo;
++    if (size < 0) {
++      throw Components.Exception(
++        "File size is unknown",
++        Cr.NS_ERROR_NOT_AVAILABLE
++      );
++    }
++
++    const input = Cc[
++      "@mozilla.org/network/android-content-input-stream;1"
++    ].createInstance(Ci.nsIAndroidContentInputStream);
++    input.init(Services.io.newURI(uri));
++    return File.createFromNsIInputStream(input, size, {
++      name,
++      type,
++      lastModified,
++    });
++  }
++
++  get file() {
++    if (!this._fileData) {
++      throw Components.Exception("", Cr.NS_ERROR_NOT_AVAILABLE);
++    }
++    const fileData = this._fileData[0];
++    if (!fileData) {
++      return null;
++    }
++    return new lazy.FileUtils.File(fileData.file);
++  }
++
++  get fileURL() {
++    return Services.io.newFileURI(this.file);
++  }
++
++  *_getEnumerator(aDOMFile) {
++    if (!this._fileData) {
++      throw Components.Exception("", Cr.NS_ERROR_NOT_AVAILABLE);
++    }
++
++    for (const fileData of this._fileData) {
++      if (aDOMFile) {
++        yield fileData.domFileOrDir;
++      }
++      yield new lazy.FileUtils.File(fileData.file);
++    }
++  }
++
++  get files() {
++    return this._getEnumerator(/* aDOMFile */ false);
++  }
++
++  _getDOMFileOrDir(aPath) {
++    if (this.mode == Ci.nsIFilePicker.modeGetFolder) {
++      return new Directory(aPath);
++    }
++    return File.createFromFileName(aPath);
++  }
++
++  get domFileOrDirectory() {
++    if (!this._fileData) {
++      throw Components.Exception("", Cr.NS_ERROR_NOT_AVAILABLE);
++    }
++    return this._fileData[0]?.domFileOrDir;
++  }
++
++  get domFileOrDirectoryEnumerator() {
++    return this._getEnumerator(/* aDOMFile */ true);
++  }
++
++  get defaultString() {
++    return "";
++  }
++
++  set defaultString(aValue) {}
++
++  get defaultExtension() {
++    return "";
++  }
++
++  set defaultExtension(aValue) {}
++
++  get filterIndex() {
++    return 0;
++  }
++
++  set filterIndex(aValue) {}
++
++  get displayDirectory() {
++    return null;
++  }
++
++  set displayDirectory(aValue) {}
++
++  get displaySpecialDirectory() {
++    return "";
++  }
++
++  set displaySpecialDirectory(aValue) {}
++
++  get addToRecentDocs() {
++    return false;
++  }
++
++  set addToRecentDocs(aValue) {}
++
++  get okButtonLabel() {
++    return "";
++  }
++
++  set okButtonLabel(aValue) {}
++
++  get capture() {
++    return this._capture;
++  }
++
++  set capture(aValue) {
++    this._capture = aValue;
++  }
++
++  *_getDOMFilesInWebKitDirectory() {
++    if (this._mode != Ci.nsIFilePicker.modeGetFolder) {
++      throw Components.Exception("", Cr.NS_ERROR_NOT_AVAILABLE);
++    }
++
++    for (const file of this._filesInWebKitDirectory) {
++      yield file;
++    }
++  }
++
++  get domFilesInWebKitDirectory() {
++    return this._getDOMFilesInWebKitDirectory();
++  }
++
++  QueryInterface = ChromeUtils.generateQI(["nsIFilePicker"]);
++}
++
++/**
++ * Runtime registration: mobile/shared's components.conf never runs in a
++ * browser/ build, so BrowserGlue calls this on final-ui-startup (Android
++ * only).
++ */
++export function register() {
++  const registrar = Components.manager.QueryInterface(Ci.nsIComponentRegistrar);
++  if (registrar.isContractIDRegistered(CONTRACT)) {
++    return;
++  }
++  const factory = {
++    createInstance(iid) {
++      return new ZenAndroidFilePicker().QueryInterface(iid);
++    },
++    QueryInterface: ChromeUtils.generateQI(["nsIFactory"]),
++  };
++  registrar.registerFactory(
++    CLASS_ID,
++    "zen-android FilePicker",
++    CONTRACT,
++    factory
++  );
++}

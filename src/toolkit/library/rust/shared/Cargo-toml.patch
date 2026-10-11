@@ -1,0 +1,30 @@
+diff --git a/toolkit/library/rust/shared/Cargo.toml b/toolkit/library/rust/shared/Cargo.toml
+index ee31dee14b666c060e8a6634b8c28575526b2b18..5ec6458ebf033be0d0d29511de4eb15563be18c7 100644
+--- a/toolkit/library/rust/shared/Cargo.toml
++++ b/toolkit/library/rust/shared/Cargo.toml
+@@ -133,16 +133,21 @@ gecko-trace = { path = "../../../components/gecko-trace" }
+ 
+ sitecategories = { path = "../../../components/sitecategories" }
+ 
+-[target.'cfg(any(target_os = "android", target_os = "macos", target_os = "ios", all(target_os = "windows", not(target_arch = "aarch64"))))'.dependencies]
+-osclientcerts = { path = "../../../../security/manager/ssl/osclientcerts" }
+-
+-[target.'cfg(not(target_os = "android"))'.dependencies]
++# Zen Android: the uniffi components were gated cfg(not(target_os = "android"))
++# upstream because the mobile/android project ships them in libmegazord.so.
++# Our cairo-android browser build has no megazord, so gkrust must link them
++# into libxul — this is what provides the uniffi_*/ffi_* symbols for
++# toolkit/components/uniffi-js (SearchService/RustSearch needs RustSearch.sys.mjs
++# + those symbols; search has been Rust-only since FF142).
+ gkrust-uniffi-components = { path = "../../../components/uniffi-bindgen-gecko-js/components/", features = ["xpcom", "mozbuild"] }
+ uniffi-bindgen-gecko-js-test-fixtures = { path = "../../../components/uniffi-bindgen-gecko-js/test-fixtures/", optional = true }
+ viaduct = "0.1"
+ viaduct-necko = { path = "../../../../services/application-services/components/viaduct-necko" }
+ webext-storage = "0.1"
+ 
++[target.'cfg(any(target_os = "android", target_os = "macos", target_os = "ios", all(target_os = "windows", not(target_arch = "aarch64"))))'.dependencies]
++osclientcerts = { path = "../../../../security/manager/ssl/osclientcerts" }
++
+ [target.'cfg(target_os = "windows")'.dependencies]
+ backgroundtaskregistrar = { path = "../../../../toolkit/components/taskscheduler/rust", optional = true }
+ detect_win32k_conflicts = { path = "../../../xre/detect_win32k_conflicts" }
