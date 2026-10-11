@@ -1,0 +1,76 @@
+# Zen Browser -> нативный Android (Bionic, cairo-android), project=browser
+# CI-эмулятор: x86_64-вариант того же порта (smoke-test на эмуляторе; артефакты в отдельном objdir) — ./mach configure проходит, MOZ_WIDGET_TOOLKIT=android
+
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/../obj-zen-android-x86_64
+
+ac_add_options --enable-application=browser
+ac_add_options --enable-project=browser
+
+# --- брендинг Zen -----------------------------------------------------------
+ac_add_options --with-app-name=zen
+ac_add_options --with-app-basename=Zen
+ac_add_options --with-branding=browser/branding/release
+export MOZ_BRANDING_DIRECTORY=browser/branding/release
+export MOZ_APP_DISPLAYNAME="Zen"
+export ACCEPTED_MAR_CHANNEL_IDS=release
+export MAR_CHANNEL_ID=release
+mk_add_options ACCEPTED_MAR_CHANNEL_IDS=release
+
+# --- target / NDK -----------------------------------------------------------
+ac_add_options --target=x86_64-linux-android
+ac_add_options --with-android-version=26
+ac_add_options --with-android-ndk="$ANDROID_NDK_HOME"
+ac_add_options --with-android-sdk="${ZEN_ANDROID_SDK:-$ANDROID_SDK_HOME}"
+ac_add_options --enable-default-toolkit=cairo-android
+
+# Системный clang не умеет линковать под bionic (нет libclang_rt.builtins.a
+# для aarch64-unknown-linux-android); компилятор берём из NDK.
+export CC="$NDK_TOOLCHAIN_BIN/x86_64-linux-android26-clang"
+export CXX="$NDK_TOOLCHAIN_BIN/x86_64-linux-android26-clang++"
+# Хост-тулзы (config/nsinstall, rust build-scripts) нельзя собирать тем же
+# компилятором, что и target: build/moz.configure/toolchain.configure добавляет
+# --target=<host triple> только когда отличается CPU или kernel/OS у дефолта
+# компилятора. Для --target=x86_64-linux-android дефолт clang-а — тот же x86_64
+# и __linux__, поэтому флаг не добавляется, и хост-бинари получаются Bionic-ELF
+# с интерпретатором /system/bin/linker64 -> «cannot execute: required file not
+# found» на ./config/nsinstall. На aarch64 этого нет, т.к. CPU хоста≠target и
+# флаг всё-таки приклеивается. Явный системный clang — единственный надёжный
+# вариант; rust.mk берёт CC_/CXX_ для хоста из этих же переменных.
+export HOST_CC="/usr/bin/clang"
+export HOST_CXX="/usr/bin/clang++"
+export HOST_AR="$NDK_TOOLCHAIN_BIN/llvm-ar"
+export HOST_RANLIB="$NDK_TOOLCHAIN_BIN/llvm-ranlib"
+export AS="$CC"
+export LD="$NDK_TOOLCHAIN_BIN/ld"
+export AR="$NDK_TOOLCHAIN_BIN/llvm-ar"
+export NM="$NDK_TOOLCHAIN_BIN/llvm-nm"
+export RANLIB="$NDK_TOOLCHAIN_BIN/llvm-ranlib"
+export STRIP="$NDK_TOOLCHAIN_BIN/llvm-strip"
+export READELF="$NDK_TOOLCHAIN_BIN/llvm-readelf"
+export OBJDUMP="$NDK_TOOLCHAIN_BIN/llvm-objdump"
+export OBJCOPY="$NDK_TOOLCHAIN_BIN/llvm-objcopy"
+
+# --- что на android нет/не нужно на первом этапе ----------------------------
+# MOZ_UPDATER по умолчанию =1 для project=browser, а mozapps/update при
+# toolkit=android не собирается -> application.ini врёт. Явно выключаем.
+ac_add_options --disable-updater
+# accessible/android включён: Route A генерирует нужные Java-обёртки
+# (SessionAccessibility/GeckoBundle) — a11y-мост бесплатный в M1.
+ac_add_options --disable-crashreporter
+ac_add_options --disable-dmd
+ac_add_options --disable-tests
+ac_add_options --disable-debug
+ac_add_options --disable-debug-symbols
+ac_add_options --disable-elf-hack
+
+# На bionic нет старой libstdc++ ABI, MOZ_STDCXX_COMPAT неприменим.
+unset MOZ_STDCXX_COMPAT
+
+# Rust под android: cargo зовёт линкер из NDK напрямую.
+export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$CC"
+
+# WASI-sysroot в образе нет; sandboxed wasm-библиотеки не critical path для M0/M1.
+ac_add_options --without-wasm-sandboxed-libraries
+
+# Порядок и пути android-тулчейна берём из NDK, а не из ./mach bootstrap.
+export MOZ_ANDROID_SDK_ROOT="$ANDROID_SDK_HOME"

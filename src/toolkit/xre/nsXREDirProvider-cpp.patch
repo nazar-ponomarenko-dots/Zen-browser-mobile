@@ -1,8 +1,86 @@
 diff --git a/toolkit/xre/nsXREDirProvider.cpp b/toolkit/xre/nsXREDirProvider.cpp
-index dcce3335e14f9f5d3c0b9fe6a86527be6011c143..ca788d6bd1db3a14d80bf571813e9c706456968f 100644
+index dcce3335e14f9f5d3c0b9fe6a86527be6011c143..13ec1dbcf4eae159d0e923770eef5439141d0d9c 100644
 --- a/toolkit/xre/nsXREDirProvider.cpp
 +++ b/toolkit/xre/nsXREDirProvider.cpp
-@@ -1335,14 +1335,10 @@ nsresult nsXREDirProvider::AppendFromAppData(nsIFile* aFile, bool aIsDotted) {
+@@ -856,37 +856,51 @@ nsresult nsXREDirProvider::GetInstallHash(nsAString& aPathHash) {
+   } else
+ #endif
+   {
+-    nsCOMPtr<nsIFile> installDir;
+-    nsCOMPtr<nsIFile> appFile;
+-    bool per = false;
+-    nsresult rv = GetFile(XRE_EXECUTABLE_FILE, &per, getter_AddRefs(appFile));
+-    NS_ENSURE_SUCCESS(rv, rv);
+-    rv = appFile->GetParent(getter_AddRefs(installDir));
+-    NS_ENSURE_SUCCESS(rv, rv);
++#ifdef MOZ_WIDGET_ANDROID
++    // zen-android: the Android install directory lives under
++    // /data/app/~~<random>==/ and changes on every reinstall, so hashing it
++    // would rotate the install ID (and its default profile) on every update.
++    // GeckoLoader putenv()s MOZ_ANDROID_PACKAGE_NAME before XRE_main; the
++    // package name is the stable install identity.
++    const char* pkgName = PR_GetEnv("MOZ_ANDROID_PACKAGE_NAME");
++    if (pkgName && *pkgName) {
++      stringToHash.AssignASCII(pkgName);
++    } else
++#endif
++    {
++      nsCOMPtr<nsIFile> installDir;
++      nsCOMPtr<nsIFile> appFile;
++      bool per = false;
++      nsresult rv = GetFile(XRE_EXECUTABLE_FILE, &per, getter_AddRefs(appFile));
++      NS_ENSURE_SUCCESS(rv, rv);
++      rv = appFile->GetParent(getter_AddRefs(installDir));
++      NS_ENSURE_SUCCESS(rv, rv);
+ 
+-    // It is possible that the path we have is on a case insensitive
+-    // filesystem in which case the path may vary depending on how the
+-    // application is called. We want to normalize the case somehow.
++      // It is possible that the path we have is on a case insensitive
++      // filesystem in which case the path may vary depending on how the
++      // application is called. We want to normalize the case somehow.
+ #ifdef XP_WIN
+-    // Windows provides a way to get the correct case.
+-    if (!mozilla::widget::WinUtils::ResolveJunctionPointsAndSymLinks(
+-            installDir)) {
+-      NS_WARNING("Failed to resolve install directory.");
+-    }
++      // Windows provides a way to get the correct case.
++      if (!mozilla::widget::WinUtils::ResolveJunctionPointsAndSymLinks(
++              installDir)) {
++        NS_WARNING("Failed to resolve install directory.");
++      }
+ #elif defined(MOZ_WIDGET_COCOA)
+-    // On OSX roundtripping through an FSRef fixes the case.
+-    FSRef ref;
+-    nsCOMPtr<nsILocalFileMac> macFile = do_QueryInterface(installDir);
+-    rv = macFile->GetFSRef(&ref);
+-    NS_ENSURE_SUCCESS(rv, rv);
+-    rv = NS_NewLocalFileWithFSRef(&ref, getter_AddRefs(macFile));
+-    NS_ENSURE_SUCCESS(rv, rv);
+-    installDir = static_cast<nsIFile*>(macFile);
++      // On OSX roundtripping through an FSRef fixes the case.
++      FSRef ref;
++      nsCOMPtr<nsILocalFileMac> macFile = do_QueryInterface(installDir);
++      rv = macFile->GetFSRef(&ref);
++      NS_ENSURE_SUCCESS(rv, rv);
++      rv = NS_NewLocalFileWithFSRef(&ref, getter_AddRefs(macFile));
++      NS_ENSURE_SUCCESS(rv, rv);
++      installDir = static_cast<nsIFile*>(macFile);
+ #endif
+-    // On linux XRE_EXECUTABLE_FILE already seems to be set to the correct path.
++      // On linux XRE_EXECUTABLE_FILE already seems to be set to the correct
++      // path.
+ 
+-    rv = installDir->GetPath(stringToHash);
+-    NS_ENSURE_SUCCESS(rv, rv);
++      rv = installDir->GetPath(stringToHash);
++      NS_ENSURE_SUCCESS(rv, rv);
++    }
+   }
+ 
+   // If we somehow failed to get an actual value, hashing an empty string could
+@@ -1335,14 +1349,10 @@ nsresult nsXREDirProvider::AppendFromAppData(nsIFile* aFile, bool aIsDotted) {
    // Similar to nsXREDirProvider::AppendProfilePath.
    // TODO: Bug 1990407 - Evaluate if refactoring might be required there in the
    // future?
@@ -20,7 +98,7 @@ index dcce3335e14f9f5d3c0b9fe6a86527be6011c143..ca788d6bd1db3a14d80bf571813e9c70
      MOZ_TRY(aFile->AppendRelativeNativePath(profile));
    } else {
      nsAutoCString vendor;
-@@ -1352,8 +1348,6 @@ nsresult nsXREDirProvider::AppendFromAppData(nsIFile* aFile, bool aIsDotted) {
+@@ -1352,8 +1362,6 @@ nsresult nsXREDirProvider::AppendFromAppData(nsIFile* aFile, bool aIsDotted) {
      ToLowerCase(vendor);
      ToLowerCase(appName);
  
@@ -29,7 +107,7 @@ index dcce3335e14f9f5d3c0b9fe6a86527be6011c143..ca788d6bd1db3a14d80bf571813e9c70
      MOZ_TRY(aFile->AppendRelativeNativePath(appName));
    }
  
-@@ -1530,18 +1524,8 @@ nsresult nsXREDirProvider::GetLegacyOrXDGHomePath(const char* aHomeDir,
+@@ -1530,18 +1538,8 @@ nsresult nsXREDirProvider::GetLegacyOrXDGHomePath(const char* aHomeDir,
      // of a specific build where legacy needs to be forced, similar to the
      // Firefox handling. Both casing are verified to account for systems where
      // that matters.

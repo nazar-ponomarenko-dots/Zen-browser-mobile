@@ -1,0 +1,88 @@
+diff --git a/widget/android/moz.build b/widget/android/moz.build
+index e8830ac214cd755b6560db58233300614af20897..35bd4492119384b82c1d9494fd088838916c1030 100644
+--- a/widget/android/moz.build
++++ b/widget/android/moz.build
+@@ -21,6 +21,12 @@ EXPORTS += [
+     "AndroidBridge.h",
+ ]
+ 
++# The "WrapForJNI" .cpp/.h are generated into the object directory by a Gradle
++# task (see mobile/android/gradle.configure, pulled into browser builds for
++# Android by browser/moz.configure).  The "!" prefix on a source path means "in
++# the object directory", not "exclude", so they have to be gated explicitly.
++is_geckoview_app = CONFIG["MOZ_WIDGET_TOOLKIT"] == "android"
++
+ classes_with_WrapForJNI = [
+     "AndroidGamepadManager",
+     "AndroidVsync",
+@@ -117,11 +123,12 @@ EXPORTS.mozilla.widget += [
+     "WindowEvent.h",
+ ]
+ 
+-EXPORTS.mozilla.java += ["!{}".format(c) for c in natives_from_WrapForJNI]
++if is_geckoview_app:
++    EXPORTS.mozilla.java += ["!{}".format(c) for c in natives_from_WrapForJNI]
+ 
+-EXPORTS.mozilla.java += ["!{}".format(c) for c in wrappers_from_WrapForJNI]
++    EXPORTS.mozilla.java += ["!{}".format(c) for c in wrappers_from_WrapForJNI]
+ 
+-SOURCES += ["!{}".format(c) for c in sources_from_WrapForJNI]
++    SOURCES += ["!{}".format(c) for c in sources_from_WrapForJNI]
+ 
+ SOURCES += [
+     "MediaKeysEventSourceFactory.cpp",
+@@ -186,30 +193,30 @@ generated_bindings = [
+     "ViewConfiguration",
+ ]
+ 
+-SOURCES += ["!bindings/%s.cpp" % stem for stem in generated_bindings]
+-
+-EXPORTS += ["!bindings/%s.h" % stem for stem in generated_bindings]
+-
+-# The recursive make backend treats the first output specially: it's passed as
+-# an open FileAvoidWrite to the invoked script.  That doesn't work well with
+-# the Gradle task that generates all of the outputs, so we add a dummy first
+-# output.
+-
+-t = tuple(
+-    ["generated_geckoview_files"]
+-    + natives_from_WrapForJNI
+-    + sources_from_WrapForJNI
+-    + wrappers_from_WrapForJNI
+-    + ["bindings/%s.cpp" % stem for stem in generated_bindings]
+-    + ["bindings/%s.h" % stem for stem in generated_bindings]
+-)
+-
+-GeneratedFile(
+-    *t,
+-    script="/mobile/android/gradle.py",
+-    inputs=["bindings/%s-classes.txt" % stem for stem in generated_bindings],
+-    force=True,
+-)
++if is_geckoview_app:
++    SOURCES += ["!bindings/%s.cpp" % stem for stem in generated_bindings]
++
++    EXPORTS += ["!bindings/%s.h" % stem for stem in generated_bindings]
++
++    # The recursive make backend treats the first output specially: it's passed
++    # as an open FileAvoidWrite to the invoked script.  That doesn't work well
++    # with the Gradle task that generates all of the outputs, so we add a dummy
++    # first output.
++    t = tuple(
++        ["generated_geckoview_files"]
++        + natives_from_WrapForJNI
++        + sources_from_WrapForJNI
++        + wrappers_from_WrapForJNI
++        + ["bindings/%s.cpp" % stem for stem in generated_bindings]
++        + ["bindings/%s.h" % stem for stem in generated_bindings]
++    )
++
++    GeneratedFile(
++        *t,
++        script="/mobile/android/gradle.py",
++        inputs=["bindings/%s-classes.txt" % stem for stem in generated_bindings],
++        force=True,
++    )
+ 
+ FINAL_LIBRARY = "xul"
+ 

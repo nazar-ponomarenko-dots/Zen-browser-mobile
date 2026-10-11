@@ -4,3 +4,4 @@
 
 *       content/browser/zen-styles/zen-compact-mode.css                         (../../zen/compact-mode/zen-compact-mode.css)
         content/browser/zen-components/ZenCompactMode.mjs                       (../../zen/compact-mode/ZenCompactMode.mjs)
+        content/browser/zen-components/ZenAndroidGestures.mjs                   (../../zen/compact-mode/ZenAndroidGestures.mjs)

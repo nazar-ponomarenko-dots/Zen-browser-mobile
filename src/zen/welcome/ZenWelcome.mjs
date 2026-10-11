@@ -379,7 +379,9 @@
       _iconToData = undefined; // Unload icon data
       document.getElementById("zen-welcome").remove();
       document.documentElement.removeAttribute("zen-welcome-stage");
+      Services.prefs.setBoolPref("zen.welcome-screen.seen", true);
       unlockWindowSize();
+      const android = AppConstants.platform === "android";
       for (const element of document.getElementById("browser").children) {
         if (kZenElementsToIgnore.includes(element.id)) {
           continue;
@@ -388,6 +390,14 @@
         element.style.removeProperty("display");
       }
       gZenUIManager.updateTabsToolbar();
+      if (android) {
+        // The panel is open at startup only because the tab is empty
+        // (`[zen-has-empty-tab]` in the compact-mode CSS); #applyChoices above
+        // has just moved that tab into a folder, which collapses the panel and
+        // leaves the flow on a blank page. Reveal it so that finishing ends on
+        // the same screen a normal start does.
+        gZenCompactModeManager.revealSidebar();
+      }
       let elementsToIgnore = kZenElementsToIgnore
         .map(id => `#${id}`)
         .join(", ");
@@ -528,6 +538,13 @@
         title: "zen-welcome-import-title",
         descriptions: ["zen-welcome-import-description"],
         buttons: [kNextButton],
+        // The wizard is a XUL popup, so on Android it never appears, but it is
+        // still open and modal: after `commit()` every chrome tap is swallowed
+        // and the flow is stuck on this step for good (measured on the
+        // emulator, `logs/ux-walk/i3.png`). Desktop sources only anyway.
+        skip() {
+          return AppConstants.platform === "android";
+        },
         render(content) {
           const yes = createOption({
             id: "zen-welcome-import-yes",
@@ -557,6 +574,13 @@
         title: "zen-welcome-workspace-colors-title",
         descriptions: ["zen-welcome-workspace-colors-description"],
         buttons: [kNextButton],
+        // The step renders the theme picker by opening it as a XUL popup anchored
+        // inside the welcome page. On Android the whole chrome is one GeckoView
+        // surface and that popup never appears, leaving the step blank. Picking a
+        // theme is still possible from the panel once the flow is over.
+        skip() {
+          return AppConstants.platform === "android";
+        },
         render(content) {
           removeVideoBackground();
           const anchor = document.createElement("div");
@@ -597,10 +621,18 @@
         title: "zen-welcome-default-search-title",
         descriptions: ["zen-welcome-default-search-description"],
         buttons: [kNextButton],
+        // Without an initialized SearchService there is no engine to pick, and
+        // reading `.name` off a null default would throw the whole flow away.
+        skip() {
+          return !lazy.SearchService.hasSuccessfullyInitialized;
+        },
         async render(content) {
           const engineStore = new ZenSearchEngineStore();
           await engineStore.init();
           const defaultEngine = await lazy.SearchService.getDefault();
+          if (!defaultEngine) {
+            return;
+          }
           for (const engine of engineStore.getEngines()) {
             const iconWrapper = document.createElement("div");
             iconWrapper.className = "engine-icon-wrapper";
@@ -636,8 +668,13 @@
         descriptions: ["zen-welcome-block-ads-description"],
         buttons: [kNextButton],
         // Nothing to offer once we know the add-on can't be installed.
+        // Same failure as the import step: installing from AM opens the
+        // web-extension permission prompt, another XUL panel that cannot render
+        // on this surface, and the flow stops taking input right after this
+        // step (`logs/ux-walk/smoke-12.png`). Add-ons stay installable from the
+        // add-ons manager once that path is taught to skip the prompt.
         skip() {
-          return _adBlocker === null;
+          return _adBlocker === null || AppConstants.platform === "android";
         },
         async render(content, pages) {
           content.appendChild(
@@ -882,7 +919,13 @@
   function startZenWelcome() {
     fetchAdBlocker();
     clearBrowserElements();
-    centerWindowOnScreen();
+    if (AppConstants.platform === "android") {
+      // The window is sized by the GeckoView surface, so resizing it to a
+      // desktop 1200x720 and pinning min/max width pushes the flow off screen.
+      document.documentElement.toggleAttribute("zen-welcome-mobile", true);
+    } else {
+      centerWindowOnScreen();
+    }
     initializeZenWelcome();
     animateInitialStage();
   }

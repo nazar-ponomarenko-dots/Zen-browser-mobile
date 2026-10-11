@@ -35,3 +35,9 @@ build/signing/private_key.pem
 build/signing/private_key.p12
 
 bloat-dump.log
+
+# zen-android: objdir'ы (`mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/../obj-zen-android*`)
+# и собранные APK — артефакты, в git не попадают.
+obj-zen-android/
+obj-zen-android-*/
+android/out/

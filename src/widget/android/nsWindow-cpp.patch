@@ -1,0 +1,39 @@
+diff --git a/widget/android/nsWindow.cpp b/widget/android/nsWindow.cpp
+index a051145830eb7e36e790cea3ba3f2aade7c5eda1..946ef669626e12014a988c5ffe47a8a1162e5ce3 100644
+--- a/widget/android/nsWindow.cpp
++++ b/widget/android/nsWindow.cpp
+@@ -1864,7 +1864,11 @@ void GeckoViewSupport::Open(
+       java::EventDispatcher::Ref::From(aDispatcher));
+   androidView->mInitData = java::GeckoBundle::Ref::From(aInitData);
+ 
+-  nsAutoCString chromeFlags("chrome,dialog=0,remote,resizable");
++  // zen-android: the standalone browser window is a full desktop-chrome
++  // window, so it needs the CHROME_TOOLBAR/MENUBAR bits. nsWindowWatcher
++  // only honours "all" when aDialog is set, and we open with dialog=0,
++  // so pass the explicit flags (which are parsed unconditionally).
++  nsAutoCString chromeFlags("chrome,dialog=0,remote,resizable,toolbar,menubar");
+   if (aPrivateMode) {
+     chromeFlags += ",private";
+   }
+@@ -2516,11 +2520,19 @@ void nsWindow::Move(const DesktopPoint& aPoint) {
+ }
+ 
+ void nsWindow::Resize(const DesktopSize& aSize, bool aRepaint) {
+-  DoResize(mBounds.x, mBounds.y, aSize.width, aSize.height, aRepaint);
++  // zen-android: nsIWidget::Resize is specified in desktop (CSS) pixels
++  // while mBounds is device pixels; vanilla GeckoView never calls this,
++  // variant A's chrome window does, so scale here.
++  const double scale = GetDefaultScale().scale;
++  DoResize(mBounds.x, mBounds.y, aSize.width * scale, aSize.height * scale,
++           aRepaint);
+ }
+ 
+ void nsWindow::Resize(const DesktopRect& aRect, bool aRepaint) {
+-  DoResize(aRect.x, aRect.y, aRect.width, aRect.height, aRepaint);
++  // zen-android: desktop px, see Resize(DesktopSize).
++  const double scale = GetDefaultScale().scale;
++  DoResize(aRect.x, aRect.y, aRect.width * scale, aRect.height * scale,
++           aRepaint);
+ }
+ 
+ void nsWindow::DoResize(double aX, double aY, double aWidth, double aHeight,

@@ -462,3 +462,70 @@
     }
   }
 }
+
+/*
+ * zen-android #41: the GeckoView surface owns the window size, so the desktop
+ * stage locks (min-width, and the 1200x720 resize that ZenWelcome skips on
+ * Android) clip the flow. Every rule is prefixed with :root[zen-welcome-mobile]
+ * because the desktop rules are nested under an id, and an unprefixed override
+ * loses that specificity fight.
+ */
+:root[zen-welcome-mobile][zen-welcome-stage] {
+  min-width: 0;
+  min-height: 0;
+}
+
+:root[zen-welcome-mobile] #zen-welcome-start #zen-welcome-title {
+  font-size: clamp(2rem, 11vw, 3.6rem);
+  max-width: 92%;
+  white-space: normal;
+}
+
+@media (max-width: 900px) {
+  :root[zen-welcome-mobile] #zen-welcome-pages {
+    flex-direction: column;
+
+    #zen-welcome-page-sidebar {
+      width: 100%;
+      height: auto;
+      flex: none;
+      padding: 2.2rem 1.6rem 1.4rem;
+      box-shadow: none;
+    }
+
+    #zen-welcome-page-sidebar-content {
+      flex: none;
+      position: static;
+    }
+
+    .zen-welcome-text {
+      position: static;
+
+      h1 {
+        margin-bottom: 1rem;
+        font-size: 1.9rem;
+      }
+
+      p {
+        font-size: 1.05rem;
+        line-height: 1.45;
+      }
+    }
+
+    #zen-welcome-page-sidebar-buttons button {
+      min-height: 3rem;
+      padding-inline: 1.6rem;
+    }
+
+    #zen-welcome-page-content {
+      flex: 1 1 auto;
+      height: auto;
+      min-height: 0;
+    }
+
+    .zen-welcome-page {
+      padding: 1.5rem 1.6rem 2.5rem;
+      gap: 1.5rem;
+    }
+  }
+}

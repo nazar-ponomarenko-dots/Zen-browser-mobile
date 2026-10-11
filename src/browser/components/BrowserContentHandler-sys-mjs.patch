@@ -1,5 +1,5 @@
 diff --git a/browser/components/BrowserContentHandler.sys.mjs b/browser/components/BrowserContentHandler.sys.mjs
-index f4a0e1e566c363d5eb1d77e0c021df250d96b3f3..2cd8c4b383723372a648a4511bed2c6e94a81c28 100644
+index f4a0e1e566c363d5eb1d77e0c021df250d96b3f3..d0973e6f72d76f36cb3da2f7ea7c0f5196ca30c4 100644
 --- a/browser/components/BrowserContentHandler.sys.mjs
 +++ b/browser/components/BrowserContentHandler.sys.mjs
 @@ -27,6 +27,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
@@ -59,3 +59,19 @@ index f4a0e1e566c363d5eb1d77e0c021df250d96b3f3..2cd8c4b383723372a648a4511bed2c6e
      return;
    }
  
+@@ -1775,7 +1802,14 @@ nsDefaultCommandLineHandler.prototype = {
+           return;
+         }
+       }
+-      openBrowserWindow(cmdLine, lazy.gSystemPrincipal);
++      if (AppConstants.platform == "android") {
++        // zen-android: on this build the first browser window is opened by
++        // the GeckoSession chrome window (MainActivity -> GeckoViewSupport::
++        // Open). Opening a desktop window here creates a second, surfaceless
++        // window that steals browser-delayed-startup from the visible one.
++      } else {
++        openBrowserWindow(cmdLine, lazy.gSystemPrincipal);
++      }
+     } else {
+       // Need a better solution in the future to avoid opening the blank window
+       // when command line parameters say we are not going to show a browser

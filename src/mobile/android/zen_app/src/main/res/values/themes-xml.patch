@@ -1,0 +1,22 @@
+diff --git a/mobile/android/zen_app/src/main/res/values/themes.xml b/mobile/android/zen_app/src/main/res/values/themes.xml
+new file mode 100644
+index 0000000000000000000000000000000000000000..28da2c566375be8adf6edb50ef7c06214a7809ec
+--- /dev/null
++++ b/mobile/android/zen_app/src/main/res/values/themes.xml
+@@ -0,0 +1,16 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <!-- Gecko paints its first chrome frame ~5s after the window is shown
++         (zen-android ROADMAP M4 startup timing), so this background *is* the
++         startup screen. DeviceDefault.Light, the previous theme, is white.
++         The splash attributes matter as much as windowBackground: on API 31+
++         the system draws its own starting window above ours, and it takes that
++         colour from windowSplashScreenBackground/colorBackground, not from
++         windowBackground. -->
++    <style name="ZenTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
++        <item name="android:windowBackground">#FF202020</item>
++        <item name="android:colorBackground">#FF202020</item>
++        <item name="android:windowSplashScreenBackground">#FF202020</item>
++        <item name="android:windowDisablePreview">true</item>
++    </style>
++</resources>

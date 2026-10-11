@@ -1,0 +1,207 @@
+diff --git a/mobile/android/zen_app/build.gradle b/mobile/android/zen_app/build.gradle
+new file mode 100644
+index 0000000000..521e9b73dc
+--- /dev/null
++++ b/mobile/android/zen_app/build.gradle
+@@ -0,0 +1,201 @@
++plugins {
++    id 'com.android.application'
++}
++
++// The browser project stages into dist/$MOZ_APP_NAME (toolkit/moz.configure:3777
++// only uses "geckoview" for build_project=mobile/android), so this module copies
++// the Gecko binaries out of dist/ itself instead of relying on the AAR layout.
++def zenTopobjdir = gradle.mozconfig.topobjdir
++def zenDist = "${zenTopobjdir}/dist/${gradle.mozconfig.substs.MOZ_APP_NAME}"
++def zenAbi = ['aarch64': 'arm64-v8a', 'x86_64': 'x86_64', 'arm': 'armeabi-v7a', 'x86': 'x86']
++        .get(gradle.mozconfig.substs.TARGET_CPU)
++def zenStaging = layout.buildDirectory.dir('zen-staged').get().asFile
++// Resolved at configuration time: the configuration cache forbids `file()`
++// calls from task actions.
++def zenLibxulProbe = file("${zenDist}/libxul.so")
++
++android {
++    namespace = 'app.zen.mobile'
++    buildToolsVersion = project.ext.buildToolsVersion
++    compileSdk {
++        version = release(project.ext.compileSdkMajorVersion) { minorApiLevel = project.ext.compileSdkMinorVersion }
++    }
++
++    defaultConfig {
++        applicationId "app.zen.mobile"
++        minSdk project.ext.minSdkVersion
++        targetSdk project.ext.targetSdkVersion
++        versionCode 1
++        versionName gradle.mozconfig.substs.MOZ_APP_VERSION
++        ndk {
++            abiFilters zenAbi
++        }
++    }
++
++    compileOptions {
++        sourceCompatibility JavaVersion.VERSION_17
++        targetCompatibility JavaVersion.VERSION_17
++    }
++
++    // omni.ja is read directly from the APK as a zip; it must stay uncompressed.
++    androidResources {
++        noCompress 'ja'
++    }
++
++    sourceSets {
++        main {
++            assets.srcDirs += "${zenStaging}/assets"
++            jniLibs.srcDirs += "${zenStaging}/jniLibs"
++        }
++    }
++
++    buildTypes {
++        debug {
++            // M2: unsigned debug builds via ./mach gradle :zen_app:assembleDebug
++        }
++    }
++}
++
++dependencies {
++    // GeckoView provides the Java side that libxul's generated JNI wrappers
++    // bind to (GeckoLoader/GeckoThread/GeckoAppShell/...).
++    implementation project(path: ':geckoview')
++}
++
++tasks.register('zenStageLibs', Copy) {
++    // `mach build stage-package` fills dist/$MOZ_APP_NAME (see zen-android/docs/
++    // patch-triage.md); this module copies the Gecko binaries out of dist/ itself
++    // instead of relying on the GeckoView AAR layout.
++    from(zenDist) {
++        include '*.so'
++        into "jniLibs/${zenAbi}"
++    }
++    into zenStaging
++    includeEmptyDirs = false
++
++    doFirst {
++        if (!zenLibxulProbe.exists()) {
++            throw new GradleException("zenStageLibs: ${zenLibxulProbe} is missing - run ./mach build stage-package first")
++        }
++    }
++}
++
++// Android is always a "unified" omnijar build: OMNIJAR_NAME carries a path
++// ("assets/omni.ja", toolkit/moz.configure:1059-1066) precisely because the final
++// package holds a single jar, and GeckoThread only ever passes -greomni
++// (GeckoThread.java:338), so Omnijar::GetReader(APP) is null and every app-side
++// lookup falls back to the GRE reader. The browser project nevertheless stages two
++// bases - dist/$APP/assets/omni.ja (GRE) and dist/$APP/browser/assets/omni.ja
++// (APP) - so they are folded into one jar here, each entry keeping its own
++// relative path. Only three text manifests collide and are concatenated; every
++// other path is disjoint. Prefixing the app tree instead would hide
++// defaults/preferences/*.js from PreferencesImpl::InitInitialObjects, whose
++// NS_ENSURE_SUCCESS there aborts pref startup (zen-android/docs/patch-triage.md #21).
++tasks.register('zenMergeOmniJar') {
++    def greJar = file("${zenDist}/assets/omni.ja")
++    def appJar = file("${zenDist}/browser/assets/omni.ja")
++    def channelPrefs = file("${zenDist}/defaults/pref/channel-prefs.js")
++    def out = new File(zenStaging, 'assets/omni.ja')
++    def manifests = ['chrome.manifest', 'chrome/chrome.manifest',
++                     'components/components.manifest'] as Set
++
++    inputs.files greJar, appJar, channelPrefs
++    outputs.file out
++
++    doLast {
++        if (!greJar.exists() || !appJar.exists()) {
++            throw new GradleException("zenMergeOmniJar: missing ${greJar} or ${appJar} - run ./mach build stage-package first")
++        }
++        out.parentFile.mkdirs()
++
++        def jarTime = 1262304000000L // 2010-01-01, the epoch the packager uses
++        def written = new HashSet<String>()
++        def manifestLines = [:].withDefault { new LinkedHashSet<String>() }
++
++        new java.util.zip.ZipOutputStream(new BufferedOutputStream(new FileOutputStream(out))).withCloseable { zos ->
++            def write = { name, data, method ->
++                def entry = new java.util.zip.ZipEntry(name)
++                entry.time = jarTime
++                if (method == java.util.zip.ZipEntry.STORED) {
++                    entry.method = java.util.zip.ZipEntry.STORED
++                    def crc = new java.util.zip.CRC32()
++                    crc.update(data)
++                    entry.size = data.length
++                    entry.compressedSize = data.length
++                    entry.crc = crc.value
++                } else {
++                    entry.method = java.util.zip.ZipEntry.DEFLATED
++                }
++                zos.putNextEntry(entry)
++                zos.write(data)
++                zos.closeEntry()
++                written.add(name)
++            }
++            def read = { zip, entry -> zip.getInputStream(entry).bytes }
++
++            def append = { zip ->
++                def entries = zip.entries()
++                while (entries.hasMoreElements()) {
++                    def e = entries.nextElement()
++                    if (e.isDirectory()) {
++                        continue
++                    }
++                    if (manifests.contains(e.name)) {
++                        new String(read(zip, e), 'UTF-8').readLines().each {
++                            if (it.trim()) {
++                                manifestLines[e.name].add(it)
++                            }
++                        }
++                        continue
++                    }
++                    if (written.contains(e.name)) {
++                        throw new GradleException("zenMergeOmniJar: unexpected duplicate entry ${e.name}")
++                    }
++                    write(e.name, read(zip, e), e.method)
++                }
++            }
++
++            def gre = new java.util.zip.ZipFile(greJar)
++            def app = new java.util.zip.ZipFile(appJar)
++            try {
++                append(gre)
++                append(app)
++
++                // Preferences.cpp:6083 loads "$MOZ_ANDROID_CPU_ABI/greprefs.js", and
++                // GeckoLoader fills that variable from Build.CPU_ABI - the ABI of the
++                // device, not of this ABI-filtered APK, so the two disagree as soon as
++                // an arm64 build runs under x86_64 translation. The fallback there is a
++                // toplevel greprefs.js, which only a unified jar can offer: mirror it.
++                if (!written.contains('greprefs.js')) {
++                    def abiGreprefs = gre.getEntry("${zenAbi}/greprefs.js")
++                    if (abiGreprefs == null) {
++                        throw new GradleException("zenMergeOmniJar: no ${zenAbi}/greprefs.js in ${greJar}")
++                    }
++                    write('greprefs.js', read(gre, abiGreprefs), java.util.zip.ZipEntry.DEFLATED)
++                }
++
++                if (channelPrefs.exists()) {
++                    write('defaults/pref/channel-prefs.js', channelPrefs.bytes,
++                            java.util.zip.ZipEntry.DEFLATED)
++                }
++
++                manifestLines.each { name, lines ->
++                    write(name, (lines.join('\n') + '\n').getBytes('UTF-8'),
++                            java.util.zip.ZipEntry.DEFLATED)
++                }
++            } finally {
++                gre.close()
++                app.close()
++            }
++        }
++        logger.lifecycle("zenMergeOmniJar: wrote ${out} (${out.length()} bytes, ${written.size()} entries)")
++    }
++}
++
++tasks.register('zenStageGecko') {
++    dependsOn 'zenStageLibs', 'zenMergeOmniJar'
++}
++
++tasks.named('preBuild') {
++    dependsOn 'zenStageGecko'
++}

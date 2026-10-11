@@ -79,6 +79,9 @@ window.gZenCompactModeManager = {
   ),
 
   preInit() {
+    // zen-android: compact mode is also the touch layout. The sidebar floats
+    // over full-width content and ZenAndroidGestures.mjs reveals it by gesture,
+    // since none of the hover machinery below has a touch equivalent.
     this._wasInCompactMode = Services.prefs.getBoolPref(
       "zen.view.compact.enable-at-startup",
       false
@@ -92,7 +95,14 @@ window.gZenCompactModeManager = {
   },
 
   init() {
-    this.addMouseActions();
+    // zen-android: touches arrive as synthesized mouse events (a tap on a
+    // sidebar button was measured to set hover state without ever clicking), so
+    // every tap would run these handlers, each of which costs a setTimeout plus
+    // a requestAnimationFrame. Revealing the panel is ZenAndroidGestures' job,
+    // so the mouse machinery stays off on touch.
+    if (Services.appinfo.OS !== "Android") {
+      this.addMouseActions();
+    }
 
     const tabIsRightObserver = this._updateSidebarIsOnRight.bind(this);
     Services.prefs.addObserver(
@@ -608,6 +618,22 @@ window.gZenCompactModeManager = {
 
   toggleSidebar() {
     this.sidebar.toggleAttribute("zen-user-show");
+  },
+
+  // Deterministic variants for the touch gestures: a swipe means "show", a tap
+  // outside means "hide", so they must not depend on the current state. Not to
+  // be confused with hideSidebar() above, which switches compact mode to
+  // "toolbar only" through the hide-tabbar pref.
+  revealSidebar() {
+    this.sidebar.setAttribute("zen-user-show", "");
+  },
+
+  collapseSidebar() {
+    this.sidebar.removeAttribute("zen-user-show");
+  },
+
+  sidebarRevealed() {
+    return this.sidebar.hasAttribute("zen-user-show");
   },
 
   get hideAfterHoverDuration() {

@@ -1,0 +1,38 @@
+diff --git a/browser/extensions/moz.build b/browser/extensions/moz.build
+index 780cf23b9c50fdde933a8825c495b3cf9a1e9b53..2ab91f0b501ba620ff5689c725617dab39a609d5 100644
+--- a/browser/extensions/moz.build
++++ b/browser/extensions/moz.build
+@@ -2,13 +2,24 @@
+ # License, v. 2.0. If a copy of the MPL was not distributed with this
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+-DIRS += [
+-    "formautofill",
+-    "ipp-activator",
+-    "webcompat",
+-    "pictureinpicture",
+-    "search-detection",
+-    "newtab",
+-]
++# zen-android: none of the desktop built-ins can work here. Their background
++# pages cannot register chrome in the Android build (nsIWebBrowserChrome 48
++# fails with NS_NOINTERFACE), so each of them loads a document whose scripts
++# all fail and costs a content process (~60 MB PSS each, measured on the
++# emulator). `newtab` is included because about:newtab is the only page its
++# *background* script is load-bearing for, and Zen does not open it: new tabs
++# are empty about:blank tabs (`zen-empty-tab`), so the redirector's
++# `promiseBuiltInAddonInitialized` never resolving is not a user-visible path.
++if CONFIG["MOZ_WIDGET_TOOLKIT"] != "android":
++    DIRS += [
++        "formautofill",
++        "ipp-activator",
++        "webcompat",
++        "pictureinpicture",
++        "search-detection",
++        "newtab",
++    ]
+ 
+ JAR_MANIFESTS += ["jar.mn"]
++
++DIRS += []
+\ No newline at end of file

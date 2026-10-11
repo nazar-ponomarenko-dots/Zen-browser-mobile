@@ -1,8 +1,8 @@
 diff --git a/xpfe/appshell/AppWindow.cpp b/xpfe/appshell/AppWindow.cpp
-index 6b218ca7d704bcaffd16d741acb0e1d1f0a0cebb..ccd8a98827219fc8ba4ad9f226e81bae53b30836 100644
+index ff293fde9f5a16f063d013e321f9e32eb861b3f5..ebb6ae2d6d70df013310b536d00649e2671a26ce 100644
 --- a/xpfe/appshell/AppWindow.cpp
 +++ b/xpfe/appshell/AppWindow.cpp
-@@ -1847,7 +1847,7 @@ nsresult AppWindow::MaybeSaveEarlyWindowPersistentValues(
+@@ -1840,7 +1840,7 @@ nsresult AppWindow::MaybeSaveEarlyWindowPersistentValues(
      }
    }
  
@@ -11,3 +11,44 @@ index 6b218ca7d704bcaffd16d741acb0e1d1f0a0cebb..ccd8a98827219fc8ba4ad9f226e81bae
  
    (void)PersistPreXULSkeletonUIValues(settings);
  #endif
+@@ -1989,6 +1989,16 @@ void AppWindow::MaybeSavePersistentMiscAttributes(
+ 
+ void AppWindow::SavePersistentAttributes(
+     const PersistentAttributes aAttributes) {
++#if defined(ANDROID)
++  // zen-android: variant A's window is sized by the GeckoView surface.
++  // Writing the surface-pixel size into the width/height attributes would
++  // make AppWindow resize the widget to those values as if they were CSS
++  // pixels, compounding the scale factor on every cycle. Persisted window
++  // geometry is meaningless on Android, so neither save nor restore it.
++  (void)aAttributes;
++  mPersistentAttributesDirty.clear();
++  return;
++#else
+   // can happen when the persistence timer fires at an inopportune time
+   // during window shutdown
+   if (!mDocShell) {
+@@ -2012,6 +2022,7 @@ void AppWindow::SavePersistentAttributes(
+   MaybeSavePersistentMiscAttributes(aAttributes, *docShellElement,
+                                     persistString);
+   mPersistentAttributesDirty -= aAttributes;
++#endif
+ }
+ 
+ NS_IMETHODIMP AppWindow::GetWindowDOMWindow(mozIDOMWindowProxy** aDOMWindow) {
+@@ -2334,6 +2345,15 @@ void AppWindow::LoadPersistentWindowState() {
+     return;
+   }
+ 
++#if defined(ANDROID)
++  // zen-android: variant A's chrome window is sized by the GeckoView surface
++  // (LayerViewSupport::OnBoundsChanged), so restoring persisted desktop
++  // size/position/sizemode must never happen.
++  if (persist.Find(u"width") >= 0 || persist.Find(u"height") >= 0) {
++    return;
++  }
++#endif
++
+   auto loadValue = [&](nsAtom* aAttr) {
+     nsDependentAtomString attrString(aAttr);
+     if (persist.Find(attrString) >= 0) {

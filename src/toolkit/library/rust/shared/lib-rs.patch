@@ -1,0 +1,31 @@
+diff --git a/toolkit/library/rust/shared/lib.rs b/toolkit/library/rust/shared/lib.rs
+index 5970a5f9d17aa2d49f1a91cf05284f5bf762b45b..32ff9cedb5af22ebd7c6b6a7b75dc5d7436814d2 100644
+--- a/toolkit/library/rust/shared/lib.rs
++++ b/toolkit/library/rust/shared/lib.rs
+@@ -62,7 +62,6 @@ extern crate xpcom;
+ 
+ extern crate audio_thread_priority;
+ 
+-#[cfg(not(target_os = "android"))]
+ extern crate webext_storage;
+ 
+ #[cfg(feature = "webrtc")]
+@@ -107,15 +106,15 @@ extern crate trust_anchors;
+ ))]
+ extern crate osclientcerts;
+ 
+-#[cfg(not(target_os = "android"))]
++// zen-android: the Cargo.toml deps above are unconditional for our build, so
++// the externs must be too — libxul is what provides the uniffi_*/ffi_* symbols
++// here (there is no libmegazord.so on this target).
+ extern crate gkrust_uniffi_components;
+ 
+ #[cfg(all(feature = "uniffi_fixtures", not(target_os = "android")))]
+ extern crate uniffi_bindgen_gecko_js_test_fixtures;
+ 
+-#[cfg(not(target_os = "android"))]
+ extern crate viaduct;
+-#[cfg(not(target_os = "android"))]
+ extern crate viaduct_necko;
+ 
+ extern crate gecko_logger;

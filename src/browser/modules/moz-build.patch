@@ -1,0 +1,12 @@
+diff --git a/browser/modules/moz.build b/browser/modules/moz.build
+index cd7ae3c9de..6c4c189844 100644
+--- a/browser/modules/moz.build
++++ b/browser/modules/moz.build
+@@ -151,6 +151,7 @@ EXTRA_JS_MODULES += [
+     "UpdatePolicyEnforcer.sys.mjs",
+     "URILoadingHelper.sys.mjs",
+     "webrtcUI.sys.mjs",
++    "ZenAndroidFilePicker.sys.mjs",
+     "ZoomUI.sys.mjs",
+ ]
+ 

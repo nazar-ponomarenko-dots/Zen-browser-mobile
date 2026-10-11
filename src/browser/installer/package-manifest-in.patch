@@ -1,8 +1,47 @@
 diff --git a/browser/installer/package-manifest.in b/browser/installer/package-manifest.in
-index 83e52b260c380b8a4fdcb9146c36a048adffba68..f55844c294bc0a0e648fd6fc09f63218c9b71de2 100644
+index 46725ca049..1553cabd22 100644
 --- a/browser/installer/package-manifest.in
 +++ b/browser/installer/package-manifest.in
-@@ -390,9 +390,9 @@ bin/libfreebl_64int_3.so
+@@ -47,7 +47,9 @@
+ #endif
+ 
+ [@AB_CD@]
++#ifndef MOZ_WIDGET_ANDROID
+ @RESPATH@/dictionaries/*
++#endif
+ @RESPATH@/browser/localization/*
+ @RESPATH@/localization/*
+ #if defined(XP_WIN) || defined(MOZ_WIDGET_GTK)
+@@ -178,7 +180,9 @@
+ @BINPATH@/@DLL_PREFIX@gkcodecs@DLL_SUFFIX@
+ @BINPATH@/@DLL_PREFIX@mozavutil@DLL_SUFFIX@
+ @BINPATH@/@DLL_PREFIX@mozavcodec@DLL_SUFFIX@
++#ifndef MOZ_WIDGET_ANDROID
+ @BINPATH@/@DLL_PREFIX@mozinference@DLL_SUFFIX@
++#endif
+ 
+ ; [Components]
+ #ifdef ACCESSIBILITY
+@@ -268,7 +272,18 @@
+ ; All the pref files must be part of base to prevent migration bugs
+ @RESPATH@/browser/@PREF_DIR@/firefox.js
+ @RESPATH@/browser/@PREF_DIR@/firefox-branding.js
++#ifdef MOZ_WIDGET_ANDROID
++; zen-android mobile defaults (browser/app/profile/a-zen-mobile.js)
++@RESPATH@/browser/@PREF_DIR@/a-zen-mobile.js
++; On Android, greprefs.js is installed under the CPU-ABI directory
++; (modules/libpref/moz.build) and Preferences.cpp loads it through
++; MOZ_ANDROID_CPU_ABI, which GeckoLoader putenv()s before XRE_main.
++; The ABI directory is globbed because ANDROID_CPU_ARCH is a set_config,
++; which the packager does not expose as a substitution variable here.
++@RESPATH@/*/greprefs.js
++#else
+ @RESPATH@/greprefs.js
++#endif
+ @RESPATH@/defaults/autoconfig/prefcalls.js
+ @RESPATH@/browser/defaults/permissions
+ ; Remote Settings JSON dumps
+@@ -395,9 +410,9 @@ bin/libfreebl_64int_3.so
  ;
  #ifdef MOZ_CRASHREPORTER
  #ifdef XP_MACOSX
@@ -13,4 +52,29 @@ index 83e52b260c380b8a4fdcb9146c36a048adffba68..f55844c294bc0a0e648fd6fc09f63218
 +;@BINPATH@/crashreporter@BIN_SUFFIX@
  #if defined(XP_WIN)
  @BINPATH@/@DLL_PREFIX@mozwer@DLL_SUFFIX@
+ #endif
+@@ -412,7 +427,9 @@ bin/libfreebl_64int_3.so
+ 
+ ; [ Ping Sender ]
+ ;
++#ifndef MOZ_WIDGET_ANDROID
+ @BINPATH@/pingsender@BIN_SUFFIX@
++#endif
+ 
+ ; [ Native Messaging Host Proxy ]
+ ;
+@@ -435,8 +452,14 @@ bin/libfreebl_64int_3.so
+ #endif
+ 
+ ; media
++#ifdef MOZ_WIDGET_ANDROID
++; The clearkey GMP plugin is packaged flat next to libxul on Android, the way
++; mobile/android/installer/package-manifest.in does it.
++@BINPATH@/@DLL_PREFIX@clearkey@DLL_SUFFIX@
++#else
+ @RESPATH@/gmp-clearkey/0.1/@DLL_PREFIX@clearkey@DLL_SUFFIX@
+ @RESPATH@/gmp-clearkey/0.1/manifest.json
++#endif
+ #if defined(MOZ_WMF_CDM) && defined(ENABLE_TESTS)
+ @BINPATH@/@DLL_PREFIX@wmfclearkey@DLL_SUFFIX@
  #endif

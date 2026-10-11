@@ -1,0 +1,26 @@
+diff --git a/toolkit/locales/jar.mn b/toolkit/locales/jar.mn
+index 7f8010ef9082397f43a3aaf75da03a36cfc16559..dcebe64754bbe5fb300c727e84270d728d2432c1 100644
+--- a/toolkit/locales/jar.mn
++++ b/toolkit/locales/jar.mn
+@@ -27,10 +27,10 @@
+   locale/@AB_CD@/global/filepicker.properties           (%chrome/global/filepicker.properties)
+   locale/@AB_CD@/global/intl.css                        (%chrome/global/intl.css)
+   locale/@AB_CD@/global/keys.properties                 (%chrome/global/keys.properties)
+-#ifndef MOZ_GECKOVIEW
++#if !defined(MOZ_GECKOVIEW) || defined(ANDROID)
+   locale/@AB_CD@/global/narrate.properties              (%chrome/global/narrate.properties)
+ #endif
+-#if !defined(XP_WIN) && !defined(MOZ_GECKOVIEW)
++#if !defined(XP_WIN) && !defined(MOZ_GECKOVIEW) || defined(ANDROID)
+   locale/@AB_CD@/global/printdialog.properties          (%chrome/global/printdialog.properties)
+ #endif
+   locale/@AB_CD@/global/resetProfile.properties         (%chrome/global/resetProfile.properties)
+@@ -47,7 +47,7 @@
+   locale/@AB_CD@/mozapps/downloads/unknownContentType.properties  (%chrome/mozapps/downloads/unknownContentType.properties)
+   locale/@AB_CD@/mozapps/downloads/downloads.properties           (%chrome/mozapps/downloads/downloads.properties)
+   locale/@AB_CD@/mozapps/profile/profileSelection.properties      (%chrome/mozapps/profile/profileSelection.properties)
+-#ifndef MOZ_GECKOVIEW
++#if !defined(MOZ_GECKOVIEW) || defined(ANDROID)
+   locale/@AB_CD@/mozapps/update/updates.properties                (%chrome/mozapps/update/updates.properties)
+ #endif
+ % locale alerts @AB_CD@ %locale/@AB_CD@/alerts/

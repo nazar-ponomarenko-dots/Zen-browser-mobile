@@ -1,0 +1,15 @@
+diff --git a/mozglue/android/APKOpen.cpp b/mozglue/android/APKOpen.cpp
+index ae8c057a301900e1c519385851854ad7f2b57151..0c2bb4c11c3f263feeecbf8313a4b3e0bea1ba39 100644
+--- a/mozglue/android/APKOpen.cpp
++++ b/mozglue/android/APKOpen.cpp
+@@ -215,6 +215,10 @@ static LoadGeckoLibsResult loadGeckoLibs() {
+                       usage2_thread.ru_majflt - usage1_thread.ru_majflt,
+                       usage2.ru_majflt - usage1.ru_majflt);
+ 
++  // The desktop value of this record comes from nsBrowserApp main(); the
++  // Android entry point (GeckoLoader.nativeRun) has no equivalent, and
++  // browser chrome (tabbrowser, LaterRun) dereferences getStartupInfo().start.
++  gBootstrap->XRE_StartupTimelineRecord(START, t0);
+   gBootstrap->XRE_StartupTimelineRecord(LINKER_INITIALIZED, t0);
+   gBootstrap->XRE_StartupTimelineRecord(LIBRARIES_LOADED, t1);
+   return Ok();

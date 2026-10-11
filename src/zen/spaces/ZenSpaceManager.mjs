@@ -962,6 +962,22 @@ class nsZenWorkspaces {
         Services.prefs.getBoolPref("zen.workspaces.continue-where-left-off")
       ) {
         this._tabToSelect = this._sessionSelected - 1;
+        // zen-android: a session saved while the zen-empty-tab placeholder
+        // was selected restores it as the selection target, which would pin
+        // the user on "New Tab" forever (its selection is re-saved every
+        // time). Fall back to the first real tab of the workspace.
+        let candidate = tabs[this._tabToSelect];
+        if (
+          !candidate ||
+          candidate === this._tabToRemoveForEmpty ||
+          candidate.hasAttribute("zen-empty-tab")
+        ) {
+          this._tabToSelect = tabs.findIndex(
+            tab =>
+              tab !== this._tabToRemoveForEmpty &&
+              !tab.hasAttribute("zen-empty-tab")
+          );
+        }
       }
       if (
         typeof this._tabToSelect === "number" &&
@@ -2998,10 +3014,15 @@ class nsZenWorkspaces {
 
   #changeToEmptyTab() {
     const isEmpty = gBrowser.selectedTab.hasAttribute("zen-empty-tab");
-    gZenCompactModeManager.sidebar.toggleAttribute(
-      "zen-has-empty-tab",
-      isEmpty
-    );
+    // zen-android: an empty tab pins the panel open on desktop so the new-tab
+    // screen stays reachable while hovering; under touch the panel is an
+    // overlay that a swipe opens, so nothing may hold it open by itself.
+    if (AppConstants.platform !== "android") {
+      gZenCompactModeManager.sidebar.toggleAttribute(
+        "zen-has-empty-tab",
+        isEmpty
+      );
+    }
     document.documentElement.setAttribute("zen-has-empty-tab", isEmpty);
   }
 

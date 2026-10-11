@@ -1,0 +1,18 @@
+diff --git a/settings.gradle b/settings.gradle
+index 5f09bd4db149b6bebc427b8ddf02bce962018528..9644b39abad862e0189479c854f3562c154bb4d2 100644
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -52,6 +52,13 @@ project(':annotations').projectDir = new File("${gradle.mozconfig.topsrcdir}/mob
+ project(':geckoview').projectDir = new File("${gradle.mozconfig.topsrcdir}/mobile/android/geckoview")
+ project(':android-components').projectDir = new File("${gradle.mozconfig.topsrcdir}/mobile/android/android-components")
+ 
++if (gradle.mozconfig.substs.MOZ_BUILD_APP == "browser" &&
++        gradle.mozconfig.substs.MOZ_WIDGET_TOOLKIT == "android") {
++    // Standalone XUL browser on Android: our loader APK (zen-android M2).
++    include ':zen_app'
++    project(':zen_app').projectDir = new File("${gradle.mozconfig.topsrcdir}/mobile/android/zen_app")
++}
++
+ if (!gradle.mozconfig.substs.MOZ_ANDROID_SUBPROJECT || gradle.mozconfig.substs.MOZ_ANDROID_SUBPROJECT == "fenix") {
+     include ':fenix'
+     project(':fenix').projectDir = new File("${gradle.mozconfig.topsrcdir}/mobile/android/fenix/app")

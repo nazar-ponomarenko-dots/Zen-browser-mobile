@@ -1,0 +1,22 @@
+diff --git a/toolkit/content/jar.mn b/toolkit/content/jar.mn
+index a54a852c3e7e054fcd1bc5c8fe5585082705a581..49bd56d842f8f59644d05e99679d421671e10a20 100644
+--- a/toolkit/content/jar.mn
++++ b/toolkit/content/jar.mn
+@@ -55,7 +55,7 @@ toolkit.jar:
+    content/global/buildconfig.css
+    content/global/colorpicker.html
+    content/global/contentAreaUtils.js
+-#ifndef MOZ_GECKOVIEW
++#if !defined(MOZ_GECKOVIEW) || defined(ANDROID)
+    content/global/editMenuOverlay.js
+ #endif
+    content/global/filepicker.properties
+@@ -77,7 +77,7 @@ toolkit.jar:
+    content/global/datetimepicker.xhtml
+    content/global/ScrollOffsets.mjs                (ScrollOffsets.mjs)
+    content/global/treeUtils.js
+-#ifndef MOZ_GECKOVIEW
++#if !defined(MOZ_GECKOVIEW) || defined(ANDROID)
+    content/global/viewZoomOverlay.js
+ #endif
+    content/global/widgets.css

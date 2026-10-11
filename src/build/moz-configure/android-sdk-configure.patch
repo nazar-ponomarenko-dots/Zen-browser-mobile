@@ -1,0 +1,27 @@
+diff --git a/build/moz.configure/android-sdk.configure b/build/moz.configure/android-sdk.configure
+index f51cce8c870b6a816c3051f05021c6d3e73b46d7..ddfb999e322b908050369b48dc1bef58db46ca73 100644
+--- a/build/moz.configure/android-sdk.configure
++++ b/build/moz.configure/android-sdk.configure
+@@ -315,13 +315,20 @@ def want_android_avd_bootstrap(want_bootstrap, moz_automation):
+     android_os_info,
+     avd_manifest,
+     android_sdk_root,
+-    when=want_android_avd_bootstrap,
++    want_android_avd_bootstrap,
+ )
+ @checking("for AVD")
+ @imports(_from="os.path", _import="exists")
+ @imports(_from="pathlib", _import="Path")
+ @imports(_from="mozboot.android", _import="ensure_android_avd")
+-def android_avd(avd_path, avd_default_path, android_os_info, avd_manifest, sdk_root):
++def android_avd(
++    avd_path, avd_default_path, android_os_info, avd_manifest, sdk_root, want_bootstrap
++):
++    # Zen Android: the gate is a dependency rather than `when=` so that this
++    # file stays includable under a blanket `when=` (browser/moz.configure).
++    if not want_bootstrap:
++        return None
++
+     if avd_path:
+         return [avd_path[0]]
+ 

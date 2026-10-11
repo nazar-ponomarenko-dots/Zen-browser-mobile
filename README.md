@@ -43,6 +43,22 @@ If you'd like to report a bug, please do so on our [GitHub Issues page](https://
 
 Zen is an open-source project, and we welcome contributions from the community! Please take a look at the [contribution guidelines](./docs/contribute.md) before getting started!
 
+### Android
+
+This branch carries the Android port: desktop Gecko (Firefox `157.0.1`,
+`cairo-android`) built for Bionic and shipped as the GeckoView app
+`app.zen.mobile` with the regular Zen chrome.
+
+```bash
+npm ci && npm run init                        # surfer download + import + bootstrap
+bash android/scripts/build-android.sh arm64   # x86_64 for the emulator
+# -> android/out/zen-arm64-v8a-debug.apk
+```
+
+Requirements, the ordering constraints the build depends on and the current
+limitations: [android/README.md](./android/README.md). Debug builds of both
+abis are attached to the [`android` release](../../releases).
+
 #### Partners
 
 Thanks to all the partners of Zen for their support and contributions:

@@ -1,0 +1,22 @@
+diff --git a/dom/xul/XULPersist.cpp b/dom/xul/XULPersist.cpp
+index 91ce17ac1d89d9caf6abec33651c4bf61f220878..134172a6182df00002e70e2e20af228cbf1de860 100644
+--- a/dom/xul/XULPersist.cpp
++++ b/dom/xul/XULPersist.cpp
+@@ -234,6 +234,17 @@ nsresult XULPersist::ApplyPersistentAttributesToElements(
+                 mDocument->GetAppWindowIfToplevelChrome()) {
+           continue;
+         }
++#if defined(ANDROID)
++        // zen-android: variant A runs the desktop chrome on a GeckoView
++        // surface and the AppWindow may not be attached yet at document
++        // creation, which lets a stale persisted size slip through here;
++        // the window is sized by the surface, never restore geometry.
++        if (attr == nsGkAtoms::width || attr == nsGkAtoms::height ||
++            attr == nsGkAtoms::screenX || attr == nsGkAtoms::screenY ||
++            attr == nsGkAtoms::sizemode) {
++          continue;
++        }
++#endif
+       }
+ 
+       if (value == kMissingAttributeToken) {

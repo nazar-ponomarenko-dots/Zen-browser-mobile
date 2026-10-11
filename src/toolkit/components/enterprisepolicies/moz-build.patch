@@ -1,0 +1,21 @@
+diff --git a/toolkit/components/enterprisepolicies/moz.build b/toolkit/components/enterprisepolicies/moz.build
+index 32217ea5ac06a518c9207006c83e97e255e3384c..b060862bdcb80e6481ac6e83c316fbfaaffc02cb 100644
+--- a/toolkit/components/enterprisepolicies/moz.build
++++ b/toolkit/components/enterprisepolicies/moz.build
+@@ -13,7 +13,15 @@ XPIDL_MODULE = "enterprisepolicies"
+ 
+ TEST_DIRS += ["tests"]
+ 
+-if CONFIG["MOZ_WIDGET_TOOLKIT"] != "android":
++# The exclusion exists for GeckoView (mobile/android build app); a standalone
++# XUL browser on Android still needs Services.policies (consumed by
++# PrivateBrowsingUtils and PlacesBrowserStartup at window startup).
++_is_standalone_android_browser = (
++    CONFIG["MOZ_BUILD_APP"] == "browser"
++    and CONFIG["MOZ_WIDGET_TOOLKIT"] == "android"
++)
++
++if CONFIG["MOZ_WIDGET_TOOLKIT"] != "android" or _is_standalone_android_browser:
+     EXTRA_JS_MODULES += [
+         "EnterprisePolicies.sys.mjs",
+         "EnterprisePoliciesContent.sys.mjs",
